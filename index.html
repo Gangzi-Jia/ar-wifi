@@ -204,21 +204,20 @@ function buildRoom() {
   const yMin = -EYE_H + 0.1, yMax = ROOM_H - EYE_H - 0.1;
   const zMin = -roomF, zMax = roomB; // -Z = forward
 
-  // Count points first
+  // Signal source: somewhere in left-front area of room
+  const srcX = xMin + (xMax - xMin) * 0.2; // toward left
+  const srcZ = zMin + (zMax - zMin) * 0.2; // toward front
+  const maxDist = Math.sqrt((xMax-xMin)**2 + (zMax-zMin)**2 + (yMax-yMin)**2);
+
   const points = [];
   for (let x = xMin; x <= xMax; x += sp) {
     for (let z = zMin; z <= zMax; z += sp) {
       for (let y = yMin; y <= yMax; y += sp) {
-        // Distance from camera position (will be updated when camera moves)
-        const dist = Math.sqrt(x * x + y * y + z * z);
-        // Signal: stronger at center of room, weaker near walls
-        const dxMin = Math.min(x - xMin, xMax - x);
-        const dzMin = Math.min(z - zMin, zMax - z);
-        const dyMin = Math.min(y - yMin, yMax - y);
-        const wallProximity = Math.min(dxMin, dzMin, dyMin);
-        const maxDim = Math.max(xMax - xMin, zMax - zMin, yMax - yMin) / 2;
-        const ratio = 1 - Math.min(wallProximity / maxDim, 1);
-        const sig = -30 - ratio * 60 + (Math.random() - 0.5) * 3;
+        // Signal based on distance from source — gradient across room
+        const dx = x - srcX, dz = z - srcZ, dy = y - 0;
+        const distToSrc = Math.sqrt(dx*dx + dz*dz + dy*dy);
+        const ratio = Math.min(distToSrc / maxDist, 1);
+        const sig = -25 - ratio * 65 + (Math.random() - 0.5) * 4;
 
         points.push({ x, y, z, sig });
       }
@@ -243,14 +242,12 @@ function buildRoom() {
     dummy.updateMatrix();
     instancedMesh.setMatrixAt(i, dummy.matrix);
     instancedMesh.setColorAt(i, sigColor(p.sig));
-    nodeData.push({ sig: p.sig });
+    nodeData.push({ sig: p.sig, x: p.x, y: p.y, z: p.z });
   }
 
   instancedMesh.instanceMatrix.needsUpdate = true;
   instancedMesh.instanceColor.needsUpdate = true;
   scene.add(instancedMesh);
-
-  updateStats();
 }
 
 // ══════════════════════════════════════
@@ -382,23 +379,46 @@ function initTouch() {
 }
 
 // ══════════════════════════════════════
-//  STATS
+//  STATS — only count nodes visible in camera frustum
 // ══════════════════════════════════════
-function updateStats() {
+const frustum = new THREE.Frustum();
+const projScreenMatrix = new THREE.Matrix4();
+const tmpVec = new THREE.Vector3();
+
+function updateVisibleStats() {
   if (nodeData.length === 0) return;
-  const sigs = nodeData.map(n => n.sig);
-  const best = Math.max(...sigs.slice(0, 5000)); // sample for perf
-  const worst = Math.min(...sigs.slice(0, 5000));
-  const avg = sigs.slice(0, 5000).reduce((a, b) => a + b, 0) / Math.min(sigs.length, 5000);
-  document.getElementById('vNodes').textContent = totalNodes;
-  document.getElementById('vBest').textContent = best.toFixed(0) + ' dBm';
-  document.getElementById('vWorst').textContent = worst.toFixed(0) + ' dBm';
-  document.getElementById('vMean').textContent = avg.toFixed(0) + ' dBm';
+
+  projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  frustum.setFromProjectionMatrix(projScreenMatrix);
+
+  let count = 0, best = -999, worst = 0, sum = 0;
+  // Sample every Nth for performance
+  const step = Math.max(1, Math.floor(nodeData.length / 5000));
+  for (let i = 0; i < nodeData.length; i += step) {
+    const n = nodeData[i];
+    tmpVec.set(n.x, n.y, n.z);
+    if (frustum.containsPoint(tmpVec)) {
+      count++;
+      if (n.sig > best) best = n.sig;
+      if (n.sig < worst) worst = n.sig;
+      sum += n.sig;
+    }
+  }
+
+  // Scale count back up if we sampled
+  const realCount = count * step;
+  document.getElementById('vNodes').textContent = realCount;
+  if (count > 0) {
+    document.getElementById('vBest').textContent = best.toFixed(0) + ' dBm';
+    document.getElementById('vWorst').textContent = worst.toFixed(0) + ' dBm';
+    document.getElementById('vMean').textContent = (sum / count).toFixed(0) + ' dBm';
+  }
 }
 
 // ══════════════════════════════════════
 //  RENDER LOOP
 // ══════════════════════════════════════
+let frameCount = 0;
 function loop() {
   requestAnimationFrame(loop);
 
@@ -416,6 +436,9 @@ function loop() {
   }
 
   renderer.render(scene, camera);
+
+  // Update visible stats every few frames
+  if (frameCount++ % 6 === 0) updateVisibleStats();
 }
 
 // ══════════════════════════════════════
