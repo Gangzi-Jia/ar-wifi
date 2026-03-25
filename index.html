@@ -225,9 +225,9 @@
 //  CONFIG
 // ══════════════════════════════════════
 const DENSITY = {
-  Low:    { thetaSteps: 5,  phiSteps: 10, spacing: 3.5 },
-  Medium: { thetaSteps: 8,  phiSteps: 16, spacing: 2.0 },
-  High:   { thetaSteps: 12, phiSteps: 24, spacing: 1.2 }
+  Low:    { spacing: 1.8 },
+  Medium: { spacing: 1.0 },
+  High:   { spacing: 0.6 }
 };
 let densKey = 'Medium';
 let scanning = true;
@@ -365,7 +365,7 @@ function createAllNodes() {
   for (let x = -maxWall; x <= maxWall; x += sp) {
     for (let z = -maxWall; z <= maxWall; z += sp) {
       const hDist = Math.sqrt(x * x + z * z);
-      if (hDist < 1.5) continue; // skip center (too close)
+      if (hDist < 0.6) continue; // skip very center
 
       // Check if this point is inside the mapped walls
       const angle = ((Math.atan2(x, z) * 180 / Math.PI) + 360) % 360;
@@ -377,7 +377,7 @@ function createAllNodes() {
         const sig = sigAt(hDist, wd);
         const col = sigColSmooth(sig);
 
-        const baseR = 0.012;
+        const baseR = 0.025;
 
         const mat = new THREE.MeshBasicMaterial({
           color: col, transparent: true, opacity: 0.85
