@@ -198,7 +198,7 @@ function buildRoom() {
   nodeData = [];
 
   const sp = SPACING[densKey];
-  const ballR = Math.min(sp * 0.3, 0.04);
+  const ballR = 0.012; // 1.2cm — small dots, perspective shows depth
 
   const xMin = -roomL, xMax = roomR;
   const yMin = -EYE_H + 0.1, yMax = ROOM_H - EYE_H - 0.1;
@@ -314,7 +314,7 @@ function onOri(e) {
   const b = THREE.MathUtils.degToRad(beta - 90);
   const g = THREE.MathUtils.degToRad(-gamma);
 
-  euler.set(b, -a, g, 'YXZ');
+  euler.set(b, a, g, 'YXZ');
   targetQ.setFromEuler(euler);
 }
 
@@ -403,7 +403,7 @@ function loop() {
   requestAnimationFrame(loop);
 
   // Camera rotation — responsive slerp
-  curQ.slerp(targetQ, 0.5);
+  curQ.slerp(targetQ, 0.3);
   camera.quaternion.copy(curQ);
 
   // Camera position — follows step detection
