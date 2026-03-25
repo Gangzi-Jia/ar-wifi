@@ -632,7 +632,7 @@ function drawMiniMap() {
   ctx.fill();
 
   // Heading indicator
-  const headRad = -curHeading * Math.PI / 180 - Math.PI / 2;
+  const headRad = curHeading * Math.PI / 180 - Math.PI / 2;
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.lineTo(cx + Math.cos(headRad) * 15, cy + Math.sin(headRad) * 15);
