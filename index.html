@@ -165,7 +165,13 @@
 // ══════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════
-const SPACING = { Low: 2.5, Medium: 1.5, High: 0.9 };
+// Rays: how many directions to sample (theta x phi)
+// Spacing: distance between balls along each ray
+const DENSITY = {
+  Low:    { thetaSteps: 6,  phiSteps: 12, spacing: 4.0 },
+  Medium: { thetaSteps: 10, phiSteps: 20, spacing: 2.5 },
+  High:   { thetaSteps: 16, phiSteps: 32, spacing: 1.5 }
+};
 let densKey = 'Medium';
 let scanning = true;
 const MAX_WALL = 50;
@@ -177,27 +183,32 @@ const MAX_WALL = 50;
 let wallSeed = [];
 
 function generateRoom() {
-  // 12 random harmonics for organic wall shape
   wallSeed = [];
-  for (let i = 0; i < 12; i++) {
+  // Few smooth harmonics for an irregular but natural room shape
+  for (let i = 0; i < 8; i++) {
     wallSeed.push({
-      freqT: 0.5 + Math.random() * 3,    // theta frequency
-      freqP: 0.5 + Math.random() * 3,    // phi frequency
-      amp: 2 + Math.random() * 8,         // amplitude in meters
+      freqT: 0.3 + Math.random() * 1.5,
+      freqP: 1 + Math.random() * 2,
+      amp: 1.5 + Math.random() * 4,
       phase: Math.random() * Math.PI * 2
     });
   }
 }
 
-// Get wall distance for any 3D direction (spherical coords)
-// theta: 0=up, PI=down; phi: horizontal angle
+// Wall distance for any 3D direction
+// Horizontal walls are farther (room-like), ceiling/floor closer
 function wallDist3D(theta, phi) {
-  let base = 8 + Math.random() * 0.1; // base distance ~8m
+  // theta: 0=up, PI=down, PI/2=horizontal
+  // Horizontal directions get larger base distance (walls far away)
+  // Vertical directions get smaller base (ceiling/floor close)
+  const horizFactor = Math.sin(theta); // 0 at poles, 1 at equator
+  const base = 3 + horizFactor * 12; // ceiling ~3m, horizontal ~15m
+
+  let variation = 0;
   for (const h of wallSeed) {
-    base += h.amp * Math.sin(theta * h.freqT + h.phase) * Math.cos(phi * h.freqP + h.phase * 0.7);
+    variation += h.amp * Math.sin(theta * h.freqT + h.phase) * Math.cos(phi * h.freqP + h.phase * 0.7);
   }
-  // Clamp between 3m and MAX_WALL
-  return Math.max(3, Math.min(MAX_WALL, base));
+  return Math.max(2, Math.min(MAX_WALL, base + variation * horizFactor));
 }
 
 // Signal based on distance ratio to wall
@@ -251,27 +262,8 @@ scene.add(worldGroup);
 // ══════════════════════════════════════
 let allNodes = [];
 
-// Pre-compute wall distances for a grid of directions (cached)
-let wallCache = null;
-
-function buildWallCache() {
-  // Sample directions evenly on a sphere using spherical coords
-  // thetaSteps x phiSteps directions
-  const tRes = 40; // vertical resolution
-  const pRes = 80; // horizontal resolution
-  wallCache = { tRes, pRes, data: [] };
-  for (let ti = 0; ti <= tRes; ti++) {
-    const theta = (ti / tRes) * Math.PI; // 0 (up) to PI (down)
-    for (let pi = 0; pi < pRes; pi++) {
-      const phi = (pi / pRes) * Math.PI * 2; // 0 to 2PI
-      const wd = wallDist3D(theta, phi);
-      wallCache.data.push({ theta, phi, wd });
-    }
-  }
-}
-
 function createAllNodes() {
-  // Dispose old
+  // Dispose old materials
   for (const n of allNodes) {
     n.mat.dispose();
     n.gMat.dispose();
@@ -279,54 +271,53 @@ function createAllNodes() {
   worldGroup.clear();
   allNodes = [];
 
-  buildWallCache();
+  const cfg = DENSITY[densKey];
+  const sp = cfg.spacing;
 
-  const sp = SPACING[densKey]; // spacing between balls along each ray
+  for (let ti = 1; ti < cfg.thetaSteps; ti++) { // skip poles
+    const theta = (ti / cfg.thetaSteps) * Math.PI;
+    for (let pi = 0; pi < cfg.phiSteps; pi++) {
+      const phi = (pi / cfg.phiSteps) * Math.PI * 2;
 
-  for (const entry of wallCache.data) {
-    const { theta, phi, wd } = entry;
+      const wd = wallDist3D(theta, phi);
 
-    // Direction unit vector
-    const dx = Math.sin(theta) * Math.sin(phi);
-    const dy = Math.cos(theta); // up/down
-    const dz = Math.sin(theta) * Math.cos(phi);
+      // Direction unit vector
+      const dx = Math.sin(theta) * Math.sin(phi);
+      const dy = Math.cos(theta);
+      const dz = Math.sin(theta) * Math.cos(phi);
 
-    // Place balls along this ray from 1m out to wall distance
-    const startDist = 1.0;
-    for (let d = startDist; d < wd - 0.2; d += sp) {
-      const x = dx * d;
-      const y = dy * d;
-      const z = dz * d;
+      // Place balls along this ray
+      for (let d = 1.5; d < wd - 0.3; d += sp) {
+        const pos = new THREE.Vector3(dx * d, dy * d, dz * d);
+        const sig = sigAt(d, wd);
+        const col = sigColSmooth(sig);
 
-      const pos = new THREE.Vector3(x, y, z);
-      const sig = sigAt(d, wd);
-      const col = sigColSmooth(sig);
+        // Near balls are bigger — strong depth cue
+        const baseR = 0.12 / (1 + d * 0.08);
 
-      // Size scales with distance for depth perception
-      const baseR = 0.04 + d * 0.002;
+        const mat = new THREE.MeshStandardMaterial({
+          color: col, emissive: col, emissiveIntensity: 0.5,
+          roughness: 0.25, metalness: 0.05,
+          transparent: true, opacity: Math.max(0.3, 0.9 - d * 0.015)
+        });
+        const core = new THREE.Mesh(sGeo, mat);
+        core.position.copy(pos);
+        core.scale.setScalar(baseR);
+        worldGroup.add(core);
 
-      const mat = new THREE.MeshStandardMaterial({
-        color: col, emissive: col, emissiveIntensity: 0.5,
-        roughness: 0.25, metalness: 0.05,
-        transparent: true, opacity: 0.8
-      });
-      const core = new THREE.Mesh(sGeo, mat);
-      core.position.copy(pos);
-      core.scale.setScalar(baseR);
-      worldGroup.add(core);
+        const gMat = new THREE.MeshBasicMaterial({
+          color: col, transparent: true, opacity: 0.05, depthWrite: false
+        });
+        const glow = new THREE.Mesh(sGeo, gMat);
+        glow.position.copy(pos);
+        glow.scale.setScalar(baseR * 3.5);
+        worldGroup.add(glow);
 
-      const gMat = new THREE.MeshBasicMaterial({
-        color: col, transparent: true, opacity: 0.06, depthWrite: false
-      });
-      const glow = new THREE.Mesh(sGeo, gMat);
-      glow.position.copy(pos);
-      glow.scale.setScalar(baseR * 3);
-      worldGroup.add(glow);
-
-      allNodes.push({
-        core, glow, mat, gMat,
-        data: { pos, sig, baseSig: sig, baseR, phase: Math.random() * 6.28, speed: 0.15 + Math.random() * 0.3 }
-      });
+        allNodes.push({
+          core, glow, mat, gMat,
+          data: { pos, sig, baseSig: sig, baseR, phase: Math.random() * 6.28, speed: 0.15 + Math.random() * 0.3 }
+        });
+      }
     }
   }
   updateStats();
