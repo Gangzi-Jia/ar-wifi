@@ -348,48 +348,60 @@ function createAllNodes() {
   worldGroup.clear();
   allNodes = [];
 
+  if (wallPoints.length === 0) return;
+
   const cfg = DENSITY[densKey];
   const sp = cfg.spacing;
 
-  for (let ti = 1; ti < cfg.thetaSteps; ti++) {
-    const theta = (ti / cfg.thetaSteps) * Math.PI;
-    for (let pi = 0; pi < cfg.phiSteps; pi++) {
-      const phi = (pi / cfg.phiSteps) * Math.PI * 2;
-      const wd = wallDist3D(theta, phi);
+  // Find max wall distance to determine grid bounds
+  let maxWall = 0;
+  for (const p of wallPoints) maxWall = Math.max(maxWall, p.dist);
+  maxWall = Math.min(maxWall, 50);
 
-      const dx = Math.sin(theta) * Math.sin(phi);
-      const dy = Math.cos(theta);
-      const dz = Math.sin(theta) * Math.cos(phi);
+  const yMin = -1.5;  // floor (~1.5m below eye)
+  const yMax = ceilingH - 1.0; // ceiling minus margin
 
-      for (let d = 1.2; d < wd - 0.2; d += sp) {
-        const pos = new THREE.Vector3(dx * d, dy * d, dz * d);
-        const sig = sigAt(d, wd);
+  // 3D Cartesian grid — this gives real depth!
+  for (let x = -maxWall; x <= maxWall; x += sp) {
+    for (let z = -maxWall; z <= maxWall; z += sp) {
+      const hDist = Math.sqrt(x * x + z * z);
+      if (hDist < 0.8) continue; // skip center (too close)
+
+      // Check if this point is inside the mapped walls
+      const angle = ((Math.atan2(x, z) * 180 / Math.PI) + 360) % 360;
+      const wd = wallDistAtAngle(angle);
+      if (hDist > wd - 0.2) continue; // outside wall
+
+      for (let y = yMin; y <= yMax; y += sp) {
+        const dist3d = Math.sqrt(x * x + y * y + z * z);
+        const sig = sigAt(hDist, wd);
         const col = sigColSmooth(sig);
 
-        // Small balls — near slightly bigger, far smaller
-        const baseR = 0.035 + 0.025 / (1 + d * 0.15);
+        // Fixed small size — perspective camera handles depth naturally
+        const baseR = 0.045;
 
         const mat = new THREE.MeshStandardMaterial({
           color: col, emissive: col, emissiveIntensity: 0.5,
           roughness: 0.25, metalness: 0.05,
-          transparent: true, opacity: Math.max(0.3, 0.85 - d * 0.015)
+          transparent: true, opacity: 0.8
         });
         const core = new THREE.Mesh(sGeo, mat);
-        core.position.copy(pos);
+        core.position.set(x, y, z);
         core.scale.setScalar(baseR);
         worldGroup.add(core);
 
         const gMat = new THREE.MeshBasicMaterial({
-          color: col, transparent: true, opacity: 0.03, depthWrite: false
+          color: col, transparent: true, opacity: 0.04, depthWrite: false
         });
         const glow = new THREE.Mesh(sGeo, gMat);
-        glow.position.copy(pos);
+        glow.position.set(x, y, z);
         glow.scale.setScalar(baseR * 2.5);
         worldGroup.add(glow);
 
         allNodes.push({
           core, glow, mat, gMat,
-          data: { pos, sig, baseSig: sig, baseR, phase: Math.random() * 6.28, speed: 0.15 + Math.random() * 0.3 }
+          data: { pos: new THREE.Vector3(x, y, z), sig, baseSig: sig, baseR,
+                  phase: Math.random() * 6.28, speed: 0.15 + Math.random() * 0.3 }
         });
       }
     }
