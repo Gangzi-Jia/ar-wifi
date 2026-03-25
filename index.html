@@ -117,7 +117,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;
 </div>
 
 <div class="hud hud-bot" id="hudBot" style="display:none">
-  <button class="btn" onclick="resetPos()">Reset Pos</button>
+  <button class="btn" onclick="moveForward(-0.5)">Back</button>
+  <button class="btn on" onclick="moveForward(0.5)">Forward</button>
+  <button class="btn" onclick="resetPos()">Reset</button>
   <button class="btn" onclick="reconfig()">Remap</button>
 </div>
 
@@ -332,20 +334,20 @@ function onMotion(e) {
   const avg = accelHistory.reduce((s, a) => s + a.mag, 0) / accelHistory.length;
   const peak = mag - avg;
 
-  if (peak > 3.0 && now - lastStepTime > 350) {
+  if (peak > 1.8 && now - lastStepTime > 280) {
     lastStepTime = now;
-    // Move camera in the direction it's facing (horizontal only)
-    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    dir.y = 0;
-    dir.normalize();
-
-    const newX = camX + dir.x * STEP_LEN;
-    const newZ = camZ + dir.z * STEP_LEN;
-
-    // Clamp to room bounds
-    if (newX >= -roomL && newX <= roomR) camX = newX;
-    if (newZ >= -roomF && newZ <= roomB) camZ = newZ;
+    moveForward(STEP_LEN);
   }
+}
+
+function moveForward(dist) {
+  const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  dir.y = 0;
+  dir.normalize();
+  const newX = camX + dir.x * dist;
+  const newZ = camZ + dir.z * dist;
+  if (newX >= -roomL && newX <= roomR) camX = newX;
+  if (newZ >= -roomF && newZ <= roomB) camZ = newZ;
 }
 
 // Touch/mouse fallback
