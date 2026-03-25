@@ -366,13 +366,13 @@ function createAllNodes() {
         const sig = sigAt(d, wd);
         const col = sigColSmooth(sig);
 
-        // Near = big, far = small (strong depth cue)
-        const baseR = 0.15 / (1 + d * 0.12);
+        // Small balls — near slightly bigger, far smaller
+        const baseR = 0.035 + 0.025 / (1 + d * 0.15);
 
         const mat = new THREE.MeshStandardMaterial({
-          color: col, emissive: col, emissiveIntensity: 0.45,
-          roughness: 0.3, metalness: 0.05,
-          transparent: true, opacity: Math.max(0.25, 0.9 - d * 0.02)
+          color: col, emissive: col, emissiveIntensity: 0.5,
+          roughness: 0.25, metalness: 0.05,
+          transparent: true, opacity: Math.max(0.3, 0.85 - d * 0.015)
         });
         const core = new THREE.Mesh(sGeo, mat);
         core.position.copy(pos);
@@ -380,11 +380,11 @@ function createAllNodes() {
         worldGroup.add(core);
 
         const gMat = new THREE.MeshBasicMaterial({
-          color: col, transparent: true, opacity: 0.04, depthWrite: false
+          color: col, transparent: true, opacity: 0.03, depthWrite: false
         });
         const glow = new THREE.Mesh(sGeo, gMat);
         glow.position.copy(pos);
-        glow.scale.setScalar(baseR * 3);
+        glow.scale.setScalar(baseR * 2.5);
         worldGroup.add(glow);
 
         allNodes.push({
