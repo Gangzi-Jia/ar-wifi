@@ -5,301 +5,170 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>AR WiFi Scanner</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  :root{
-    --bg:#06060e;--panel:rgba(6,6,14,0.78);--gb:rgba(255,255,255,0.05);
-    --cyan:#00d4ff;--green:#00e67a;--yellow:#ffd600;--orange:#ff8800;--red:#ff2d55;
-    --t1:#e8e8ec;--t2:#6e6e80;
-  }
-  html,body{width:100%;height:100%;overflow:hidden;background:#000;
-    font-family:system-ui,-apple-system,sans-serif;color:var(--t1);touch-action:none;-webkit-user-select:none;user-select:none}
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--cyan:#00d4ff;--green:#00e67a;--yellow:#ffd600;--orange:#ff8800;--red:#ff2d55}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;
+  font-family:system-ui,-apple-system,sans-serif;color:#e8e8ec;
+  touch-action:none;-webkit-user-select:none;user-select:none}
 
-  #cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;background:#000}
-  #c3d{position:fixed;inset:0;width:100%;height:100%;z-index:1;background:transparent}
+#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;background:#000}
+#c3d{position:fixed;inset:0;width:100%;height:100%;z-index:1}
 
-  #cam-err{position:fixed;inset:0;z-index:0;display:none;
-    flex-direction:column;align-items:center;justify-content:center;gap:12px;
-    background:radial-gradient(ellipse at center,#111122,#06060e);color:var(--t2);font-size:13px;text-align:center;padding:40px}
-  #cam-err .icon{font-size:48px;margin-bottom:8px}
-  #cam-err .title{font-size:16px;color:var(--t1);font-weight:600}
+/* ── Setup screen ── */
+#setup{position:fixed;inset:0;z-index:200;background:#06060e;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  transition:opacity .5s}
+#setup.gone{opacity:0;pointer-events:none}
+#setup h2{font-size:20px;font-weight:700}
+#setup p{font-size:12px;color:#6e6e80;text-align:center;max-width:280px;line-height:1.5}
 
-  .hud{position:fixed;z-index:10;pointer-events:none}
+.room-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:240px}
+.room-inputs label{font-size:11px;color:#6e6e80;display:flex;flex-direction:column;gap:4px}
+.room-inputs input{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;color:#fff;font-size:16px;padding:8px 10px;text-align:center;
+  font-family:'Consolas',monospace;width:100%}
+.room-inputs input:focus{outline:none;border-color:var(--cyan)}
 
-  .top{top:0;left:0;right:0;padding:48px 18px 14px;
-    background:linear-gradient(to bottom,rgba(0,0,0,.6),transparent);
-    display:flex;justify-content:space-between;align-items:flex-start}
-  .top h1{font-size:15px;font-weight:600;letter-spacing:.5px;color:#fff}
-  .top .sub{font-size:9.5px;color:rgba(255,255,255,.35);font-family:'Consolas','Courier New',monospace;margin-top:2px;letter-spacing:.4px}
-  .pill{display:flex;align-items:center;gap:6px;
-    background:rgba(0,230,122,.1);border:1px solid rgba(0,230,122,.22);
-    border-radius:20px;padding:5px 13px;font-size:10.5px;font-weight:600;
-    color:var(--green);font-family:'Consolas','Courier New',monospace}
-  .pill .bk{width:5px;height:5px;border-radius:50%;background:var(--green);animation:bk 1.6s ease infinite}
-  @keyframes bk{0%,100%{opacity:1}50%{opacity:.15}}
+.density-row{display:flex;gap:8px;align-items:center;font-size:12px;color:#6e6e80}
+.density-row button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;color:#fff;font-size:12px;padding:6px 14px;cursor:pointer}
+.density-row button.sel{background:rgba(0,212,255,.2);border-color:var(--cyan);color:var(--cyan)}
 
-  .scard{top:108px;left:12px;background:var(--panel);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
-    border:1px solid var(--gb);border-radius:14px;padding:12px 14px;min-width:124px}
-  .scard .r{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
-  .scard .r+.r{border-top:1px solid var(--gb)}
-  .scard .l{font-size:8.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--t2);font-family:'Consolas','Courier New',monospace}
-  .scard .v{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;font-family:'Consolas','Courier New',monospace}
+#startBtn{margin-top:8px;background:linear-gradient(135deg,#00d4ff,#2979ff);color:#000;
+  border:none;border-radius:50px;padding:14px 50px;font-size:15px;font-weight:700;
+  cursor:pointer;font-family:system-ui;box-shadow:0 8px 28px rgba(0,212,255,.28)}
+#startBtn:active{transform:scale(.95)}
 
-  .lg{top:108px;right:12px;background:var(--panel);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
-    border:1px solid var(--gb);border-radius:14px;padding:10px 12px}
-  .lg .tt{font-size:7.5px;text-transform:uppercase;letter-spacing:1.1px;color:var(--t2);margin-bottom:7px;font-family:'Consolas','Courier New',monospace}
-  .lg .i{display:flex;align-items:center;gap:7px;font-size:9.5px;color:var(--t2);padding:2px 0;font-family:'Consolas','Courier New',monospace}
-  .lg .d{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+/* ── HUD ── */
+.hud{position:fixed;z-index:10;pointer-events:none}
+.hud-top{top:0;left:0;right:0;padding:44px 14px 10px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.55),transparent);
+  display:flex;justify-content:space-between;align-items:flex-start}
+.hud-top h1{font-size:14px;font-weight:600;color:#fff}
+.hud-top .sub{font-size:9px;color:rgba(255,255,255,.3);font-family:'Consolas',monospace;margin-top:2px}
 
-  .bot{bottom:0;left:0;right:0;padding:12px 12px 36px;
-    background:linear-gradient(to top,rgba(0,0,0,.6),transparent);
-    display:flex;justify-content:center;gap:9px;pointer-events:auto}
-  .bt{pointer-events:auto;background:rgba(255,255,255,.07);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-    border:1px solid rgba(255,255,255,.09);border-radius:50px;color:#fff;
-    font-family:system-ui,-apple-system,sans-serif;font-size:11.5px;font-weight:600;
-    padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s}
-  .bt:active{transform:scale(.93);background:rgba(255,255,255,.15)}
-  .bt.on{background:rgba(0,212,255,.16);border-color:rgba(0,212,255,.3);color:var(--cyan)}
-  .bt svg{width:14px;height:14px;fill:currentColor}
+.stat-card{top:100px;left:10px;background:rgba(6,6,14,.78);backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:10px 12px;min-width:110px}
+.stat-card .row{display:flex;justify-content:space-between;padding:3px 0;font-size:10px}
+.stat-card .row+.row{border-top:1px solid rgba(255,255,255,.04)}
+.stat-card .lbl{color:#6e6e80;font-family:'Consolas',monospace;text-transform:uppercase;letter-spacing:.5px;font-size:8px}
+.stat-card .val{font-weight:700;font-family:'Consolas',monospace;font-size:11px}
 
-  .swp{position:fixed;left:0;right:0;height:1.5px;z-index:4;
-    background:linear-gradient(90deg,transparent,var(--cyan),transparent);
-    opacity:.35;animation:swp 3s linear infinite}
-  @keyframes swp{0%{top:44px}100%{top:calc(100% - 84px)}}
+.pos-card{top:100px;right:10px;background:rgba(6,6,14,.78);backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:10px 12px}
+.pos-card .val{font-size:11px;font-family:'Consolas',monospace;color:var(--cyan)}
 
-  .cn{position:fixed;z-index:5;width:26px;height:26px;border-color:rgba(0,212,255,.2);border-style:solid}
-  .cn.tl{top:40px;left:8px;border-width:2px 0 0 2px}
-  .cn.tr{top:40px;right:8px;border-width:2px 2px 0 0}
-  .cn.bl{bottom:82px;left:8px;border-width:0 0 2px 2px}
-  .cn.br{bottom:82px;right:8px;border-width:0 2px 2px 0}
+.hud-bot{bottom:0;left:0;right:0;padding:10px 12px 32px;
+  background:linear-gradient(to top,rgba(0,0,0,.55),transparent);
+  display:flex;justify-content:center;gap:8px;pointer-events:auto}
+.btn{background:rgba(255,255,255,.07);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.09);border-radius:50px;color:#fff;
+  font-size:11px;font-weight:600;padding:9px 14px;cursor:pointer;
+  display:flex;align-items:center;gap:4px}
+.btn:active{transform:scale(.93)}
+.btn.on{background:rgba(0,212,255,.15);border-color:rgba(0,212,255,.25);color:var(--cyan)}
 
-  .cross{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none}
-  .cross svg{width:32px;height:32px;opacity:.2}
-
-  .hid{display:none!important}
-
-  /* ── Splash ── */
-  #sp{position:fixed;inset:0;z-index:200;background:var(--bg);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .5s}
-  #sp.go{opacity:0;pointer-events:none}
-  #sp .ic{width:84px;height:84px;border-radius:24px;
-    background:linear-gradient(135deg,#00d4ff,#7c3aed);
-    display:flex;align-items:center;justify-content:center;font-size:38px;
-    box-shadow:0 14px 44px rgba(0,212,255,.25)}
-  #sp h2{font-size:22px;font-weight:700;letter-spacing:.7px}
-  #sp p{font-size:12.5px;color:var(--t2);text-align:center;max-width:280px;line-height:1.55}
-  #gbtn{margin-top:10px;background:linear-gradient(135deg,#00d4ff,#2979ff);color:#000;border:none;border-radius:50px;
-    padding:14px 50px;font-size:15px;font-weight:700;cursor:pointer;font-family:system-ui,-apple-system,sans-serif;
-    letter-spacing:.4px;box-shadow:0 8px 28px rgba(0,212,255,.28);transition:transform .15s}
-  #gbtn:active{transform:scale(.95)}
-
-  /* ── Mapping mode ── */
-  #mapUI{position:fixed;inset:0;z-index:100;display:none;flex-direction:column;align-items:center;justify-content:flex-start}
-  #mapUI.show{display:flex}
-
-  #mapTop{width:100%;padding:50px 20px 10px;background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent);text-align:center}
-  #mapTop h2{font-size:16px;margin-bottom:4px}
-  #mapTop p{font-size:11px;color:var(--t2);line-height:1.5}
-  #mapDir{font-size:13px;color:var(--cyan);margin-top:8px;font-family:'Consolas','Courier New',monospace}
-
-  #mapCenter{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:101;pointer-events:none}
-  #mapCenter .ring{width:80px;height:80px;border:2px solid var(--cyan);border-radius:50%;
-    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--cyan);
-    background:rgba(0,212,255,.08);text-align:center;line-height:1.3}
-
-  #mapBot{position:fixed;bottom:0;left:0;right:0;padding:16px 20px 40px;z-index:101;
-    background:linear-gradient(to top,rgba(0,0,0,.85),transparent);
-    display:flex;flex-direction:column;align-items:center;gap:12px}
-  #mapSlider{width:80%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;
-    background:linear-gradient(90deg,var(--green),var(--yellow),var(--red));outline:none}
-  #mapSlider::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;
-    background:var(--cyan);border:3px solid #fff;cursor:pointer}
-  #mapDistLabel{font-size:22px;font-weight:700;color:var(--cyan);font-family:'Consolas','Courier New',monospace}
-  #mapBtns{display:flex;gap:12px}
-  #mapBtns button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:50px;
-    color:#fff;font-size:13px;font-weight:600;padding:10px 24px;cursor:pointer;font-family:system-ui,-apple-system,sans-serif}
-  #mapBtns button.primary{background:linear-gradient(135deg,#00d4ff,#2979ff);color:#000;border:none}
-  #mapBtns button:active{transform:scale(.95)}
-
-  #mapMini{position:fixed;top:50%;right:12px;transform:translateY(-50%);z-index:101;pointer-events:none}
-  #mapMiniCanvas{width:120px;height:120px;border-radius:12px;background:rgba(0,0,0,.6);border:1px solid var(--gb)}
-
-  #mapProgress{display:flex;gap:6px;margin-top:4px}
-  #mapProgress .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.15)}
-  #mapProgress .dot.done{background:var(--cyan)}
-  #mapProgress .dot.cur{background:var(--green);box-shadow:0 0 6px var(--green)}
+/* scan line */
+.scanline{position:fixed;left:0;right:0;height:1.5px;z-index:4;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  opacity:.3;animation:sc 3s linear infinite}
+@keyframes sc{0%{top:40px}100%{top:calc(100% - 80px)}}
 </style>
 </head>
 <body>
 
 <video id="cam" autoplay playsinline muted></video>
-
-<div id="cam-err">
-  <div class="icon">📷</div>
-  <div class="title">Camera unavailable</div>
-  <div>Camera needs HTTPS secure context.<br>3D signal visualization still works below.</div>
-</div>
-
 <canvas id="c3d"></canvas>
 
-<div class="swp hid" id="swp"></div>
-<div class="cn tl hid" id="cn1"></div>
-<div class="cn tr hid" id="cn2"></div>
-<div class="cn bl hid" id="cn3"></div>
-<div class="cn br hid" id="cn4"></div>
-
-<div class="cross hid" id="cross">
-  <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="6" fill="none" stroke="rgba(0,212,255,0.35)" stroke-width="1"/>
-  <line x1="16" y1="4" x2="16" y2="11" stroke="rgba(0,212,255,0.25)" stroke-width="1"/>
-  <line x1="16" y1="21" x2="16" y2="28" stroke="rgba(0,212,255,0.25)" stroke-width="1"/>
-  <line x1="4" y1="16" x2="11" y2="16" stroke="rgba(0,212,255,0.25)" stroke-width="1"/>
-  <line x1="21" y1="16" x2="28" y2="16" stroke="rgba(0,212,255,0.25)" stroke-width="1"/></svg>
-</div>
-
-<div class="hud top hid" id="htop">
-  <div><h1>AR Signal Scanner</h1><div class="sub" id="msub">INITIALIZING</div></div>
-  <div class="pill"><div class="bk"></div><span id="plbl">Scanning</span></div>
-</div>
-
-<div class="hud scard hid" id="hstat">
-  <div class="r"><span class="l">Nodes</span><span class="v" id="sn" style="color:var(--cyan)">0</span></div>
-  <div class="r"><span class="l">Best</span><span class="v" id="sb" style="color:var(--green)">—</span></div>
-  <div class="r"><span class="l">Worst</span><span class="v" id="sw" style="color:var(--red)">—</span></div>
-  <div class="r"><span class="l">Mean</span><span class="v" id="sa" style="color:var(--yellow)">—</span></div>
-</div>
-
-<div class="hud lg hid" id="hleg">
-  <div class="tt">dBm Scale</div>
-  <div class="i"><div class="d" style="background:var(--green)"></div>Strong &gt;-50</div>
-  <div class="i"><div class="d" style="background:var(--yellow)"></div>Medium -70~-50</div>
-  <div class="i"><div class="d" style="background:var(--orange)"></div>Weak -85~-70</div>
-  <div class="i"><div class="d" style="background:var(--red)"></div>Poor &lt;-85</div>
-</div>
-
-<div class="hud bot hid" id="hbot">
-  <button class="bt on" id="bscan" onclick="togScan()">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 00-7.07 2.93l1.41 1.41A8 8 0 0112 4V2zm0 20a10 10 0 007.07-2.93l-1.41-1.41A8 8 0 0112 20v2zM2 12a10 10 0 002.93 7.07l1.41-1.41A8 8 0 014 12H2zm20 0a10 10 0 00-2.93-7.07l-1.41 1.41A8 8 0 0120 12h2z"/></svg>
-    Scan
-  </button>
-  <button class="bt" id="bdens" onclick="cycDens()">
-    <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
-    <span id="dlbl">Medium</span>
-  </button>
-  <button class="bt" id="bremap" onclick="startMapping()">
-    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
-    Remap
-  </button>
-</div>
-
-<!-- ── Splash ── -->
-<div id="sp">
-  <div class="ic">📡</div>
+<!-- ── Setup ── -->
+<div id="setup">
   <h2>AR WiFi Scanner</h2>
-  <p>Step 1: Point your phone at each wall and mark its distance.<br>Step 2: Signal balls fill the space you mapped. Rotate to explore.</p>
-  <button id="gbtn" onclick="launch()">Start</button>
+  <p>Input the distance (meters) from you to each wall. Height is fixed at 4m.</p>
+  <div class="room-inputs">
+    <label>Front<input id="dF" type="number" value="5" min="0.5" max="50" step="0.5"></label>
+    <label>Back<input id="dB" type="number" value="3" min="0.5" max="50" step="0.5"></label>
+    <label>Left<input id="dL" type="number" value="2" min="0.5" max="50" step="0.5"></label>
+    <label>Right<input id="dR" type="number" value="4" min="0.5" max="50" step="0.5"></label>
+  </div>
+  <div class="density-row">
+    Density:
+    <button onclick="setDens('Low')" id="dLow">Low 50cm</button>
+    <button onclick="setDens('Medium')" id="dMedium" class="sel">Medium 20cm</button>
+    <button onclick="setDens('High')" id="dHigh">High 10cm</button>
+  </div>
+  <button id="startBtn" onclick="startApp()">Start</button>
 </div>
 
-<!-- ── Mapping UI ── -->
-<div id="mapUI">
-  <div id="mapTop">
-    <h2>Map Your Space</h2>
-    <p>Turn to face each direction, then drag the slider to set wall distance.</p>
-    <div id="mapDir">Direction 1 / 8</div>
-    <div id="mapProgress"></div>
-  </div>
-  <div id="mapCenter"><div class="ring"><span id="mapCenterDist">5m</span></div></div>
-  <div id="mapMini"><canvas id="mapMiniCanvas" width="120" height="120"></canvas></div>
-  <div id="mapBot">
-    <div id="mapDistLabel">5.0 m</div>
-    <input type="range" id="mapSlider" min="1" max="50" step="0.5" value="5">
-    <div id="mapBtns">
-      <button onclick="mapPrev()">Back</button>
-      <button class="primary" onclick="mapNext()">Next</button>
-      <button class="primary" onclick="mapDone()">Done</button>
-    </div>
-  </div>
+<!-- ── HUD ── -->
+<div class="hud hud-top" id="hudTop" style="display:none">
+  <div><h1>AR Signal Scanner</h1><div class="sub" id="subLabel">INITIALIZING</div></div>
 </div>
+
+<div class="hud stat-card" id="hudStat" style="display:none">
+  <div class="row"><span class="lbl">Nodes</span><span class="val" id="vNodes" style="color:var(--cyan)">0</span></div>
+  <div class="row"><span class="lbl">Best</span><span class="val" id="vBest" style="color:var(--green)">—</span></div>
+  <div class="row"><span class="lbl">Worst</span><span class="val" id="vWorst" style="color:var(--red)">—</span></div>
+  <div class="row"><span class="lbl">Mean</span><span class="val" id="vMean" style="color:var(--yellow)">—</span></div>
+</div>
+
+<div class="hud pos-card" id="hudPos" style="display:none">
+  <div style="font-size:8px;color:#6e6e80;font-family:'Consolas',monospace;margin-bottom:4px">POSITION</div>
+  <div class="val" id="vPos">0.0, 0.0</div>
+</div>
+
+<div class="hud hud-bot" id="hudBot" style="display:none">
+  <button class="btn" onclick="resetPos()">Reset Pos</button>
+  <button class="btn" onclick="reconfig()">Remap</button>
+</div>
+
+<div class="scanline" id="scanline" style="display:none"></div>
 
 <script src="https://unpkg.com/three@0.152.0/build/three.min.js"></script>
 <script>
 // ══════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════
-const DENSITY = {
-  Low:    { spacing: 0.5 },
-  Medium: { spacing: 0.2 },
-  High:   { spacing: 0.1 }
-};
+const SPACING = { Low: 0.5, Medium: 0.2, High: 0.1 };
 let densKey = 'Medium';
-let scanning = true;
+const ROOM_H = 4.0;
+const EYE_H = 1.6; // eye height
 
-// ══════════════════════════════════════
-//  WALL MAP — user-defined distances per direction
-//  wallPoints: array of { angle (deg, 0=forward), dist (meters) }
-//  Also store ceiling and floor heights
-// ══════════════════════════════════════
-const MAP_DIRS = 8; // how many horizontal directions to map
-let wallPoints = []; // { angle, dist }
-let ceilingH = 3.0; // meters above user
-let floorH = 0;     // below user (usually 0, floor is where they stand)
+// Room dimensions (set by user)
+let roomF = 5, roomB = 3, roomL = 2, roomR = 4;
+// User position within the room (starts at origin = initial position)
+// Room coords: +Z = forward, -Z = back, -X = left, +X = right
+// User starts at (roomL, EYE_H, roomB) in room-local coords
+// But we place camera at (0, 0, 0) and offset the room
 
-// Interpolate wall distance for any horizontal angle
-function wallDistAtAngle(deg) {
-  if (wallPoints.length === 0) return 5;
-  if (wallPoints.length === 1) return wallPoints[0].dist;
-
-  let a = ((deg % 360) + 360) % 360;
-  const sorted = [...wallPoints].sort((a, b) => a.angle - b.angle);
-
-  // Find surrounding two points
-  let lo = sorted[sorted.length - 1], hi = sorted[0];
-  for (let i = 0; i < sorted.length; i++) {
-    if (sorted[i].angle <= a) lo = sorted[i];
-    if (sorted[i].angle > a) { hi = sorted[i]; break; }
-  }
-
-  let loA = lo.angle, hiA = hi.angle;
-  if (hiA <= loA) hiA += 360;
-  let aa = a;
-  if (aa < loA) aa += 360;
-  const range = hiA - loA;
-  const t = range > 0 ? (aa - loA) / range : 0;
-  // Smooth interpolation (cosine)
-  const st = 0.5 - 0.5 * Math.cos(t * Math.PI);
-  return lo.dist + (hi.dist - lo.dist) * st;
+function setDens(k) {
+  densKey = k;
+  document.querySelectorAll('.density-row button').forEach(b => b.classList.remove('sel'));
+  document.getElementById('d' + k).classList.add('sel');
 }
 
-// Get wall distance for a 3D direction (theta=vertical, phi=horizontal)
-function wallDist3D(theta, phi) {
-  // theta: 0=up, PI=down, PI/2=horizontal
-  // For horizontal directions, use the user-mapped wall distance
-  // For vertical, blend toward ceiling/floor
-  const horizDist = wallDistAtAngle(phi * 180 / Math.PI);
-  const vertAngle = theta - Math.PI / 2; // -PI/2 (up) to +PI/2 (down)
+// ══════════════════════════════════════
+//  THREE.JS
+// ══════════════════════════════════════
+const cvs = document.getElementById('c3d');
+const renderer = new THREE.WebGLRenderer({ canvas: cvs, alpha: true, antialias: true });
+renderer.setClearColor(0x000000, 0);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
 
-  if (Math.abs(vertAngle) < 0.1) return horizDist; // looking horizontally
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 120);
+camera.position.set(0, 0, 0);
 
-  if (vertAngle < 0) {
-    // Looking up — blend horizontal wall dist toward ceiling
-    const upFactor = -vertAngle / (Math.PI / 2); // 0 to 1
-    const ceilDist = ceilingH / Math.max(0.01, Math.sin(-vertAngle));
-    return horizDist + (Math.min(ceilDist, horizDist) - horizDist) * upFactor;
-  } else {
-    // Looking down — blend toward floor
-    const downFactor = vertAngle / (Math.PI / 2);
-    const floorDist = 1.6 / Math.max(0.01, Math.sin(vertAngle)); // eye height ~1.6m
-    return horizDist + (Math.min(floorDist, horizDist) - horizDist) * downFactor;
-  }
-}
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+
+let instancedMesh = null;
+let totalNodes = 0;
+let nodeData = []; // { sig }
 
 // ══════════════════════════════════════
 //  SIGNAL
 // ══════════════════════════════════════
-function sigAt(dist, wallDist) {
-  const ratio = Math.min(dist / wallDist, 1);
-  return -30 - ratio * 60 + (Math.random() - 0.5) * 2;
-}
-
-function sigColSmooth(dbm) {
+function sigColor(dbm) {
   const g = new THREE.Color(0x00e67a);
   const y = new THREE.Color(0xffd600);
   const o = new THREE.Color(0xff8800);
@@ -312,149 +181,124 @@ function sigColSmooth(dbm) {
 }
 
 // ══════════════════════════════════════
-//  THREE.JS SETUP
+//  BUILD ROOM — uniform 3D grid in a cuboid
+//  Camera at (0, 0, 0). Room extends:
+//    X: -roomL to +roomR
+//    Y: -EYE_H to +(ROOM_H - EYE_H)
+//    Z: -roomB to +roomF  (forward = -Z in Three.js, but we use +Z here and flip camera)
+//  Actually: Three.js camera looks down -Z by default.
+//  So: forward = -Z. Room: Z from -roomF to +roomB, X from -roomL to +roomR
 // ══════════════════════════════════════
-const cvs = document.getElementById('c3d');
-const renderer = new THREE.WebGLRenderer({ canvas: cvs, alpha: true, antialias: true });
-renderer.setClearColor(0x000000, 0);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+function buildRoom() {
+  if (instancedMesh) {
+    scene.remove(instancedMesh);
+    instancedMesh.geometry.dispose();
+    instancedMesh.material.dispose();
+  }
+  nodeData = [];
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 120);
-camera.position.set(0, 0, 0);
+  const sp = SPACING[densKey];
+  const ballR = Math.min(sp * 0.3, 0.04);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-const dL = new THREE.DirectionalLight(0xffffff, 0.5);
-dL.position.set(3, 5, 2);
-scene.add(dL);
-const pL = new THREE.PointLight(0x00d4ff, 0.3, 30);
-scene.add(pL);
+  const xMin = -roomL, xMax = roomR;
+  const yMin = -EYE_H + 0.1, yMax = ROOM_H - EYE_H - 0.1;
+  const zMin = -roomF, zMax = roomB; // -Z = forward
 
-const sGeo = new THREE.SphereGeometry(1, 10, 10);
-const worldGroup = new THREE.Group();
-scene.add(worldGroup);
-
-// ══════════════════════════════════════
-//  NODES — radial rays from center, respecting mapped walls
-// ══════════════════════════════════════
-let allNodes = []; // { sig, baseSig, index }
-let instancedMesh = null;
-const dummy = new THREE.Object3D();
-const tempCol = new THREE.Color();
-
-function createAllNodes() {
-  if (instancedMesh) { worldGroup.remove(instancedMesh); instancedMesh.dispose(); }
-  allNodes = [];
-
-  if (wallPoints.length === 0) return;
-
-  const sp = DENSITY[densKey].spacing;
-
-  // Find max wall distance
-  let maxWall = 0;
-  for (const p of wallPoints) maxWall = Math.max(maxWall, p.dist);
-  maxWall = Math.min(maxWall, 50);
-
-  // Ball radius proportional to spacing
-  const ballR = sp * 0.35;
-
-  // Y layers: floor to ceiling, but limit layers for performance
-  const yMin = -1.5;
-  const yMax = ceilingH - 0.5;
-  const yStep = Math.max(sp, 0.3); // y spacing at least 0.3m
-
-  // First pass: count points
+  // Count points first
   const points = [];
-  for (let x = -maxWall; x <= maxWall; x += sp) {
-    for (let z = -maxWall; z <= maxWall; z += sp) {
-      const hDist = Math.sqrt(x * x + z * z);
-      if (hDist < 0.5) continue;
+  for (let x = xMin; x <= xMax; x += sp) {
+    for (let z = zMin; z <= zMax; z += sp) {
+      for (let y = yMin; y <= yMax; y += sp) {
+        // Distance from camera position (will be updated when camera moves)
+        const dist = Math.sqrt(x * x + y * y + z * z);
+        // Signal: stronger at center of room, weaker near walls
+        const dxMin = Math.min(x - xMin, xMax - x);
+        const dzMin = Math.min(z - zMin, zMax - z);
+        const dyMin = Math.min(y - yMin, yMax - y);
+        const wallProximity = Math.min(dxMin, dzMin, dyMin);
+        const maxDim = Math.max(xMax - xMin, zMax - zMin, yMax - yMin) / 2;
+        const ratio = 1 - Math.min(wallProximity / maxDim, 1);
+        const sig = -30 - ratio * 60 + (Math.random() - 0.5) * 3;
 
-      const angle = ((Math.atan2(x, z) * 180 / Math.PI) + 360) % 360;
-      const wd = wallDistAtAngle(angle);
-      if (hDist > wd - 0.1) continue;
-
-      for (let y = yMin; y <= yMax; y += yStep) {
-        const sig = sigAt(hDist, wd);
-        points.push({ x, y, z, sig, hDist, wd });
+        points.push({ x, y, z, sig });
       }
     }
   }
 
-  // Cap at 50000 for performance
-  if (points.length > 50000) {
-    points.length = 50000;
-  }
+  // Cap for performance
+  const maxPts = 80000;
+  if (points.length > maxPts) points.length = maxPts;
 
-  // Create InstancedMesh
-  const geo = new THREE.SphereGeometry(1, 8, 8);
-  const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.85 });
-  instancedMesh = new THREE.InstancedMesh(geo, mat, points.length);
-  instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  totalNodes = points.length;
 
-  for (let i = 0; i < points.length; i++) {
+  const geo = new THREE.SphereGeometry(1, 6, 6);
+  const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8 });
+  instancedMesh = new THREE.InstancedMesh(geo, mat, totalNodes);
+
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < totalNodes; i++) {
     const p = points[i];
     dummy.position.set(p.x, p.y, p.z);
     dummy.scale.setScalar(ballR);
     dummy.updateMatrix();
     instancedMesh.setMatrixAt(i, dummy.matrix);
-
-    const col = sigColSmooth(p.sig);
-    instancedMesh.setColorAt(i, col);
-
-    allNodes.push({ sig: p.sig, baseSig: p.sig, index: i,
-      phase: Math.random() * 6.28, speed: 0.15 + Math.random() * 0.3 });
+    instancedMesh.setColorAt(i, sigColor(p.sig));
+    nodeData.push({ sig: p.sig });
   }
 
   instancedMesh.instanceMatrix.needsUpdate = true;
   instancedMesh.instanceColor.needsUpdate = true;
-  worldGroup.add(instancedMesh);
+  scene.add(instancedMesh);
 
   updateStats();
 }
 
 // ══════════════════════════════════════
-//  GYROSCOPE — direct, responsive
+//  CAMERA — gyroscope for rotation, step detection for movement
 // ══════════════════════════════════════
 let hasGyro = false;
 let baseAlpha = null;
 let curQ = new THREE.Quaternion();
 let targetQ = new THREE.Quaternion();
 const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-let tRotX = 0, tRotY = 0;
 
-// Current phone heading (for mapping mode)
-let curHeading = 0; // degrees, 0 = initial forward
+// Position tracking
+let camX = 0, camZ = 0; // horizontal position offset
+let lastStepTime = 0;
+let accelHistory = [];
+const STEP_LEN = 0.65; // meters per step
 
-function initOrientation() {
+function initSensors() {
+  // Gyroscope
   const tryGyro = () => {
     window.addEventListener('deviceorientation', onOri, true);
     setTimeout(() => {
       if (!hasGyro) {
-        document.getElementById('msub').textContent = 'TOUCH / MOUSE';
+        document.getElementById('subLabel').textContent = 'TOUCH MODE';
         initTouch();
       }
-    }, 2500);
+    }, 2000);
   };
   if (typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission().then(r => {
       if (r === 'granted') tryGyro();
-      else { document.getElementById('msub').textContent = 'TOUCH / MOUSE'; initTouch(); }
-    }).catch(() => { document.getElementById('msub').textContent = 'TOUCH / MOUSE'; initTouch(); });
+      else initTouch();
+    }).catch(() => initTouch());
   } else {
     tryGyro();
+  }
+
+  // Accelerometer for step detection
+  if (window.DeviceMotionEvent) {
+    window.addEventListener('devicemotion', onMotion, true);
   }
 }
 
 function onOri(e) {
   if (e.alpha == null && e.beta == null) return;
   hasGyro = true;
-  document.getElementById('msub').textContent = 'GYROSCOPE ACTIVE';
+  document.getElementById('subLabel').textContent = 'GYROSCOPE + STEP DETECT';
 
   const alpha = e.alpha || 0;
   const beta = e.beta || 0;
@@ -466,9 +310,6 @@ function onOri(e) {
   if (da > 180) da -= 360;
   if (da < -180) da += 360;
 
-  // Track heading for mapping
-  curHeading = (((-da) % 360) + 360) % 360;
-
   const a = THREE.MathUtils.degToRad(da);
   const b = THREE.MathUtils.degToRad(beta - 90);
   const g = THREE.MathUtils.degToRad(-gamma);
@@ -477,240 +318,103 @@ function onOri(e) {
   targetQ.setFromEuler(euler);
 }
 
+// Step detection from accelerometer
+function onMotion(e) {
+  const acc = e.accelerationIncludingGravity;
+  if (!acc) return;
+  const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+  const now = Date.now();
+
+  accelHistory.push({ mag, t: now });
+  // Keep last 500ms
+  accelHistory = accelHistory.filter(a => now - a.t < 500);
+
+  if (accelHistory.length < 3) return;
+
+  // Detect step: acceleration spike above threshold
+  const avg = accelHistory.reduce((s, a) => s + a.mag, 0) / accelHistory.length;
+  const peak = mag - avg;
+
+  if (peak > 3.0 && now - lastStepTime > 350) {
+    lastStepTime = now;
+    // Move camera in the direction it's facing (horizontal only)
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    dir.y = 0;
+    dir.normalize();
+
+    const newX = camX + dir.x * STEP_LEN;
+    const newZ = camZ + dir.z * STEP_LEN;
+
+    // Clamp to room bounds
+    if (newX >= -roomL && newX <= roomR) camX = newX;
+    if (newZ >= -roomF && newZ <= roomB) camZ = newZ;
+  }
+}
+
+// Touch/mouse fallback
+let tRotX = 0, tRotY = 0;
 function initTouch() {
+  document.getElementById('subLabel').textContent = 'TOUCH MODE';
   let dragging = false, sx, sy;
-  const onD = (x, y) => { dragging = true; sx = x; sy = y; };
-  const onM = (x, y) => {
+  cvs.addEventListener('touchstart', e => { e.preventDefault(); dragging = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: false });
+  cvs.addEventListener('touchmove', e => {
+    e.preventDefault();
     if (!dragging) return;
-    tRotY -= (x - sx) * 0.004;
-    tRotX -= (y - sy) * 0.004;
+    tRotY -= (e.touches[0].clientX - sx) * 0.004;
+    tRotX -= (e.touches[0].clientY - sy) * 0.004;
     tRotX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, tRotX));
-    curHeading = ((-tRotY * 180 / Math.PI) % 360 + 360) % 360;
-    sx = x; sy = y;
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
     euler.set(tRotX, tRotY, 0, 'YXZ');
     targetQ.setFromEuler(euler);
-  };
-  const onU = () => dragging = false;
-  cvs.addEventListener('touchstart', e => { e.preventDefault(); onD(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
-  cvs.addEventListener('touchmove', e => { e.preventDefault(); onM(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
-  cvs.addEventListener('touchend', onU);
-  cvs.addEventListener('mousedown', e => onD(e.clientX, e.clientY));
-  window.addEventListener('mousemove', e => onM(e.clientX, e.clientY));
-  window.addEventListener('mouseup', onU);
-}
-
-// ══════════════════════════════════════
-//  MAPPING MODE
-// ══════════════════════════════════════
-let mapStep = 0;
-let mapActive = false;
-let mapTempPoints = [];
-
-function startMapping() {
-  mapActive = true;
-  mapStep = 0;
-  mapTempPoints = [];
-  // Initialize with current heading as "forward" (0 deg)
-  baseAlpha = null; // reset gyro base so current direction = 0
-
-  document.getElementById('mapUI').classList.add('show');
-  // Hide main HUD
-  document.querySelectorAll('#htop,#hstat,#hleg,#hbot,#swp,#cn1,#cn2,#cn3,#cn4,#cross').forEach(el => el.style.display = 'none');
-
-  updateMapUI();
-  drawMiniMap();
-}
-
-function updateMapUI() {
-  const dirNames = ['Front', 'Front-Right', 'Right', 'Back-Right', 'Back', 'Back-Left', 'Left', 'Front-Left'];
-  document.getElementById('mapDir').textContent =
-    `${dirNames[mapStep]} (${mapStep + 1}/${MAP_DIRS})`;
-
-  // Progress dots
-  let dots = '';
-  for (let i = 0; i < MAP_DIRS; i++) {
-    const cls = i < mapStep ? 'dot done' : i === mapStep ? 'dot cur' : 'dot';
-    dots += `<div class="${cls}"></div>`;
-  }
-  document.getElementById('mapProgress').innerHTML = dots;
-
-  // Slider
-  const slider = document.getElementById('mapSlider');
-  const existing = mapTempPoints[mapStep];
-  slider.value = existing ? existing.dist : 5;
-  updateSliderLabel();
-
-  // Show/hide buttons
-  document.querySelector('#mapBtns button:first-child').style.display = mapStep > 0 ? '' : 'none';
-  document.querySelector('#mapBtns button:nth-child(2)').style.display = mapStep < MAP_DIRS - 1 ? '' : 'none';
-  document.querySelector('#mapBtns button:nth-child(3)').style.display = mapStep >= 3 ? '' : 'none'; // Done after 3+
-}
-
-function updateSliderLabel() {
-  const v = parseFloat(document.getElementById('mapSlider').value);
-  document.getElementById('mapDistLabel').textContent = v.toFixed(1) + ' m';
-  document.getElementById('mapCenterDist').textContent = v.toFixed(1) + 'm';
-}
-
-document.getElementById('mapSlider').addEventListener('input', () => {
-  updateSliderLabel();
-  saveCurrentMapPoint();
-  drawMiniMap();
-});
-
-function saveCurrentMapPoint() {
-  const dist = parseFloat(document.getElementById('mapSlider').value);
-  const angle = (mapStep / MAP_DIRS) * 360;
-  mapTempPoints[mapStep] = { angle, dist };
-}
-
-function mapNext() {
-  saveCurrentMapPoint();
-  if (mapStep < MAP_DIRS - 1) {
-    mapStep++;
-    updateMapUI();
-    drawMiniMap();
-  }
-}
-
-function mapPrev() {
-  saveCurrentMapPoint();
-  if (mapStep > 0) {
-    mapStep--;
-    updateMapUI();
-    drawMiniMap();
-  }
-}
-
-function mapDone() {
-  saveCurrentMapPoint();
-  // Apply mapped points
-  wallPoints = mapTempPoints.filter(p => p);
-  mapActive = false;
-  document.getElementById('mapUI').classList.remove('show');
-
-  // Show main HUD
-  document.querySelectorAll('#htop,#hstat,#hleg,#hbot,#swp,#cn1,#cn2,#cn3,#cn4,#cross').forEach(el => el.style.display = '');
-
-  createAllNodes();
-}
-
-// Mini top-down map
-function drawMiniMap() {
-  const c = document.getElementById('mapMiniCanvas');
-  const ctx = c.getContext('2d');
-  const W = c.width, H = c.height;
-  const cx = W / 2, cy = H / 2;
-
-  ctx.clearRect(0, 0, W, H);
-
-  // Background
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(0, 0, W, H);
-
-  // Find max dist for scaling
-  let maxD = 10;
-  for (const p of mapTempPoints) { if (p && p.dist > maxD) maxD = p.dist; }
-  const scale = (W / 2 - 12) / maxD;
-
-  // Draw mapped points and connect them
-  const pts = [];
-  for (let i = 0; i < MAP_DIRS; i++) {
-    const angle = (i / MAP_DIRS) * Math.PI * 2 - Math.PI / 2; // -90 so 0=up
-    const d = mapTempPoints[i] ? mapTempPoints[i].dist : 0;
-    pts.push({ x: cx + Math.cos(angle) * d * scale, y: cy + Math.sin(angle) * d * scale, mapped: !!mapTempPoints[i] });
-  }
-
-  // Fill polygon
-  ctx.beginPath();
-  let started = false;
-  for (const p of pts) {
-    if (!p.mapped) continue;
-    if (!started) { ctx.moveTo(p.x, p.y); started = true; }
-    else ctx.lineTo(p.x, p.y);
-  }
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(0,212,255,0.08)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0,212,255,0.4)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  // Draw points
-  for (let i = 0; i < pts.length; i++) {
-    if (!pts[i].mapped) continue;
-    ctx.beginPath();
-    ctx.arc(pts[i].x, pts[i].y, i === mapStep ? 4 : 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = i === mapStep ? '#00e67a' : '#00d4ff';
-    ctx.fill();
-  }
-
-  // Center dot (you)
-  ctx.beginPath();
-  ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-  ctx.fillStyle = '#fff';
-  ctx.fill();
-
-  // Heading indicator
-  const headRad = curHeading * Math.PI / 180 - Math.PI / 2;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + Math.cos(headRad) * 15, cy + Math.sin(headRad) * 15);
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
+  }, { passive: false });
+  cvs.addEventListener('touchend', () => dragging = false);
+  cvs.addEventListener('mousedown', e => { dragging = true; sx = e.clientX; sy = e.clientY; });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    tRotY -= (e.clientX - sx) * 0.004;
+    tRotX -= (e.clientY - sy) * 0.004;
+    tRotX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, tRotX));
+    sx = e.clientX; sy = e.clientY;
+    euler.set(tRotX, tRotY, 0, 'YXZ');
+    targetQ.setFromEuler(euler);
+  });
+  window.addEventListener('mouseup', () => dragging = false);
 }
 
 // ══════════════════════════════════════
 //  STATS
 // ══════════════════════════════════════
 function updateStats() {
-  if (allNodes.length === 0) return;
-  const sigs = allNodes.map(n => n.sig);
-  const best = Math.max(...sigs);
-  const worst = Math.min(...sigs);
-  const avg = sigs.reduce((a, b) => a + b, 0) / sigs.length;
-  document.getElementById('sn').textContent = allNodes.length;
-  document.getElementById('sb').textContent = best.toFixed(0) + ' dBm';
-  document.getElementById('sw').textContent = worst.toFixed(0) + ' dBm';
-  document.getElementById('sa').textContent = avg.toFixed(0) + ' dBm';
-  document.getElementById('plbl').textContent =
-    avg > -50 ? 'Strong' : avg > -70 ? 'Medium' : avg > -85 ? 'Weak' : 'Poor';
+  if (nodeData.length === 0) return;
+  const sigs = nodeData.map(n => n.sig);
+  const best = Math.max(...sigs.slice(0, 5000)); // sample for perf
+  const worst = Math.min(...sigs.slice(0, 5000));
+  const avg = sigs.slice(0, 5000).reduce((a, b) => a + b, 0) / Math.min(sigs.length, 5000);
+  document.getElementById('vNodes').textContent = totalNodes;
+  document.getElementById('vBest').textContent = best.toFixed(0) + ' dBm';
+  document.getElementById('vWorst').textContent = worst.toFixed(0) + ' dBm';
+  document.getElementById('vMean').textContent = avg.toFixed(0) + ' dBm';
 }
 
 // ══════════════════════════════════════
 //  RENDER LOOP
 // ══════════════════════════════════════
-const clk = new THREE.Clock();
-let colorUpdatedThisCycle = false;
-
 function loop() {
   requestAnimationFrame(loop);
-  const t = clk.getElapsedTime();
 
-  // Responsive camera — slerp 0.5 for slight smoothing, no lag feel
+  // Camera rotation — responsive slerp
   curQ.slerp(targetQ, 0.5);
   camera.quaternion.copy(curQ);
 
-  if (scanning && !mapActive && instancedMesh) {
-    // Update colors periodically (not every frame for perf)
-    if (Math.floor(t * 2) % 2 === 0 && !colorUpdatedThisCycle) {
-      for (const n of allNodes) {
-        n.sig = n.baseSig + Math.sin(t * n.speed + n.phase) * 1.5;
-        instancedMesh.setColorAt(n.index, sigColSmooth(n.sig));
-      }
-      instancedMesh.instanceColor.needsUpdate = true;
-      colorUpdatedThisCycle = true;
-      updateStats();
-    }
-    if (Math.floor(t * 2) % 2 !== 0) colorUpdatedThisCycle = false;
+  // Camera position — follows step detection
+  camera.position.set(camX, 0, camZ);
+
+  // Update position display
+  const posEl = document.getElementById('vPos');
+  if (posEl && posEl.style.display !== 'none') {
+    posEl.textContent = `${camX.toFixed(1)}, ${camZ.toFixed(1)}`;
   }
 
-  // Update mini map heading during mapping
-  if (mapActive && Math.floor(t * 5) % 2 === 0) drawMiniMap();
-
-  const dir = new THREE.Vector3(0, 0, -4).applyQuaternion(camera.quaternion);
-  pL.position.copy(dir);
   renderer.render(scene, camera);
 }
 
@@ -719,36 +423,51 @@ function loop() {
 // ══════════════════════════════════════
 async function startCam() {
   const video = document.getElementById('cam');
-  if (!window.isSecureContext) { showCamError(); return false; }
+  if (!window.isSecureContext) { video.style.display = 'none'; return; }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
     });
     video.srcObject = stream;
     await new Promise(r => { video.onloadedmetadata = () => { video.play().then(r).catch(r); }; setTimeout(r, 3000); });
-    if (video.videoWidth > 0) return true;
-    showCamError(); return false;
-  } catch (e) { showCamError(); return false; }
-}
-
-function showCamError() {
-  document.getElementById('cam').style.display = 'none';
-  document.getElementById('cam-err').style.display = 'flex';
+  } catch (e) { video.style.display = 'none'; }
 }
 
 // ══════════════════════════════════════
 //  CONTROLS
 // ══════════════════════════════════════
-function togScan() {
-  scanning = !scanning;
-  document.getElementById('bscan').classList.toggle('on', scanning);
+function resetPos() {
+  camX = 0;
+  camZ = 0;
+  baseAlpha = null;
+  curQ.identity();
+  targetQ.identity();
+  tRotX = 0;
+  tRotY = 0;
 }
 
-function cycDens() {
-  const k = Object.keys(DENSITY);
-  densKey = k[(k.indexOf(densKey) + 1) % k.length];
-  document.getElementById('dlbl').textContent = densKey;
-  if (wallPoints.length > 0) createAllNodes();
+function reconfig() {
+  document.getElementById('setup').classList.remove('gone');
+  ['hudTop', 'hudStat', 'hudPos', 'hudBot', 'scanline'].forEach(id =>
+    document.getElementById(id).style.display = 'none');
+}
+
+// ══════════════════════════════════════
+//  START
+// ══════════════════════════════════════
+async function startApp() {
+  roomF = parseFloat(document.getElementById('dF').value) || 5;
+  roomB = parseFloat(document.getElementById('dB').value) || 3;
+  roomL = parseFloat(document.getElementById('dL').value) || 2;
+  roomR = parseFloat(document.getElementById('dR').value) || 4;
+
+  document.getElementById('setup').classList.add('gone');
+  ['hudTop', 'hudStat', 'hudPos', 'hudBot', 'scanline'].forEach(id =>
+    document.getElementById(id).style.display = '');
+
+  await startCam();
+  initSensors();
+  buildRoom();
 }
 
 window.addEventListener('resize', () => {
@@ -756,20 +475,6 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
-// ══════════════════════════════════════
-//  LAUNCH
-// ══════════════════════════════════════
-async function launch() {
-  document.getElementById('sp').classList.add('go');
-  await startCam();
-  initOrientation();
-  // Go straight to mapping
-  setTimeout(() => {
-    document.querySelectorAll('.hid').forEach(el => el.classList.remove('hid'));
-    startMapping();
-  }, 600);
-}
 
 loop();
 </script>
