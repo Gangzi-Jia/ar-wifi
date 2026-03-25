@@ -344,7 +344,7 @@ scene.add(worldGroup);
 let allNodes = [];
 
 function createAllNodes() {
-  for (const n of allNodes) { n.mat.dispose(); n.gMat.dispose(); }
+  for (const n of allNodes) { n.mat.dispose(); if (n.gMat) n.gMat.dispose(); }
   worldGroup.clear();
   allNodes = [];
 
@@ -365,7 +365,7 @@ function createAllNodes() {
   for (let x = -maxWall; x <= maxWall; x += sp) {
     for (let z = -maxWall; z <= maxWall; z += sp) {
       const hDist = Math.sqrt(x * x + z * z);
-      if (hDist < 0.8) continue; // skip center (too close)
+      if (hDist < 1.5) continue; // skip center (too close)
 
       // Check if this point is inside the mapped walls
       const angle = ((Math.atan2(x, z) * 180 / Math.PI) + 360) % 360;
@@ -377,29 +377,18 @@ function createAllNodes() {
         const sig = sigAt(hDist, wd);
         const col = sigColSmooth(sig);
 
-        // Fixed small size — perspective camera handles depth naturally
-        const baseR = 0.045;
+        const baseR = 0.012;
 
-        const mat = new THREE.MeshStandardMaterial({
-          color: col, emissive: col, emissiveIntensity: 0.5,
-          roughness: 0.25, metalness: 0.05,
-          transparent: true, opacity: 0.8
+        const mat = new THREE.MeshBasicMaterial({
+          color: col, transparent: true, opacity: 0.85
         });
         const core = new THREE.Mesh(sGeo, mat);
         core.position.set(x, y, z);
         core.scale.setScalar(baseR);
         worldGroup.add(core);
 
-        const gMat = new THREE.MeshBasicMaterial({
-          color: col, transparent: true, opacity: 0.04, depthWrite: false
-        });
-        const glow = new THREE.Mesh(sGeo, gMat);
-        glow.position.set(x, y, z);
-        glow.scale.setScalar(baseR * 2.5);
-        worldGroup.add(glow);
-
         allNodes.push({
-          core, glow, mat, gMat,
+          core, glow: null, mat, gMat: null,
           data: { pos: new THREE.Vector3(x, y, z), sig, baseSig: sig, baseR,
                   phase: Math.random() * 6.28, speed: 0.15 + Math.random() * 0.3 }
         });
@@ -691,10 +680,7 @@ function loop() {
       const pulse = 1 + Math.sin(t * 0.4 + d.phase) * 0.02;
 
       n.core.scale.setScalar(d.baseR * pulse);
-      n.glow.scale.setScalar(d.baseR * 3 * pulse);
       n.mat.color.copy(col);
-      n.mat.emissive.copy(col);
-      n.gMat.color.copy(col);
     }
     if (Math.floor(t * 10) % 40 === 0) updateStats();
   }
