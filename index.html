@@ -1,507 +1,760 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>AR WiFi Scanner</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{--cyan:#00d4ff;--green:#00e67a;--yellow:#ffd600;--orange:#ff8800;--red:#ff2d55}
-html,body{width:100%;height:100%;overflow:hidden;background:#000;
-  font-family:system-ui,-apple-system,sans-serif;color:#e8e8ec;
-  touch-action:none;-webkit-user-select:none;user-select:none}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR WiFi Scanner</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
 
-#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;background:#000}
-#c3d{position:fixed;inset:0;width:100%;height:100%;z-index:1}
+    :root {
+      --cyan: #00d4ff;
+      --green: #00e67a;
+      --yellow: #ffd600;
+      --orange: #ff8800;
+      --red: #ff2d55
+    }
 
-/* ── Setup screen ── */
-#setup{position:fixed;inset:0;z-index:200;background:#06060e;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
-  transition:opacity .5s}
-#setup.gone{opacity:0;pointer-events:none}
-#setup h2{font-size:20px;font-weight:700}
-#setup p{font-size:12px;color:#6e6e80;text-align:center;max-width:280px;line-height:1.5}
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #e8e8ec;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none
+    }
 
-.room-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:240px}
-.room-inputs label{font-size:11px;color:#6e6e80;display:flex;flex-direction:column;gap:4px}
-.room-inputs input{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
-  border-radius:8px;color:#fff;font-size:16px;padding:8px 10px;text-align:center;
-  font-family:'Consolas',monospace;width:100%}
-.room-inputs input:focus{outline:none;border-color:var(--cyan)}
+    #cam {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+      background: #000
+    }
 
-.density-row{display:flex;gap:8px;align-items:center;font-size:12px;color:#6e6e80}
-.density-row button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
-  border-radius:20px;color:#fff;font-size:12px;padding:6px 14px;cursor:pointer}
-.density-row button.sel{background:rgba(0,212,255,.2);border-color:var(--cyan);color:var(--cyan)}
+    #c3d {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1
+    }
 
-#startBtn{margin-top:8px;background:linear-gradient(135deg,#00d4ff,#2979ff);color:#000;
-  border:none;border-radius:50px;padding:14px 50px;font-size:15px;font-weight:700;
-  cursor:pointer;font-family:system-ui;box-shadow:0 8px 28px rgba(0,212,255,.28)}
-#startBtn:active{transform:scale(.95)}
+    /* ── Setup screen ── */
+    #setup {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: #06060e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      transition: opacity .5s
+    }
 
-/* ── HUD ── */
-.hud{position:fixed;z-index:10;pointer-events:none}
-.hud-top{top:0;left:0;right:0;padding:44px 14px 10px;
-  background:linear-gradient(to bottom,rgba(0,0,0,.55),transparent);
-  display:flex;justify-content:space-between;align-items:flex-start}
-.hud-top h1{font-size:14px;font-weight:600;color:#fff}
-.hud-top .sub{font-size:9px;color:rgba(255,255,255,.3);font-family:'Consolas',monospace;margin-top:2px}
+    #setup.gone {
+      opacity: 0;
+      pointer-events: none
+    }
 
-.stat-card{top:100px;left:10px;background:rgba(6,6,14,.78);backdrop-filter:blur(18px);
-  border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:10px 12px;min-width:110px}
-.stat-card .row{display:flex;justify-content:space-between;padding:3px 0;font-size:10px}
-.stat-card .row+.row{border-top:1px solid rgba(255,255,255,.04)}
-.stat-card .lbl{color:#6e6e80;font-family:'Consolas',monospace;text-transform:uppercase;letter-spacing:.5px;font-size:8px}
-.stat-card .val{font-weight:700;font-family:'Consolas',monospace;font-size:11px}
+    #setup h2 {
+      font-size: 20px;
+      font-weight: 700
+    }
 
-.pos-card{top:100px;right:10px;background:rgba(6,6,14,.78);backdrop-filter:blur(18px);
-  border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:10px 12px}
-.pos-card .val{font-size:11px;font-family:'Consolas',monospace;color:var(--cyan)}
+    #setup p {
+      font-size: 12px;
+      color: #6e6e80;
+      text-align: center;
+      max-width: 280px;
+      line-height: 1.5
+    }
 
-.hud-bot{bottom:0;left:0;right:0;padding:10px 12px 32px;
-  background:linear-gradient(to top,rgba(0,0,0,.55),transparent);
-  display:flex;justify-content:center;gap:8px;pointer-events:auto}
-.btn{background:rgba(255,255,255,.07);backdrop-filter:blur(8px);
-  border:1px solid rgba(255,255,255,.09);border-radius:50px;color:#fff;
-  font-size:11px;font-weight:600;padding:9px 14px;cursor:pointer;
-  display:flex;align-items:center;gap:4px}
-.btn:active{transform:scale(.93)}
-.btn.on{background:rgba(0,212,255,.15);border-color:rgba(0,212,255,.25);color:var(--cyan)}
+    .room-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 240px
+    }
 
-/* scan line */
-.scanline{position:fixed;left:0;right:0;height:1.5px;z-index:4;
-  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
-  opacity:.3;animation:sc 3s linear infinite}
-@keyframes sc{0%{top:40px}100%{top:calc(100% - 80px)}}
-</style>
+    .room-inputs label {
+      font-size: 11px;
+      color: #6e6e80;
+      display: flex;
+      flex-direction: column;
+      gap: 4px
+    }
+
+    .room-inputs input {
+      background: rgba(255, 255, 255, .08);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 16px;
+      padding: 8px 10px;
+      text-align: center;
+      font-family: 'Consolas', monospace;
+      width: 100%
+    }
+
+    .room-inputs input:focus {
+      outline: none;
+      border-color: var(--cyan)
+    }
+
+    .density-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      color: #6e6e80
+    }
+
+    .density-row button {
+      background: rgba(255, 255, 255, .08);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 20px;
+      color: #fff;
+      font-size: 12px;
+      padding: 6px 14px;
+      cursor: pointer
+    }
+
+    .density-row button.sel {
+      background: rgba(0, 212, 255, .2);
+      border-color: var(--cyan);
+      color: var(--cyan)
+    }
+
+    #startBtn {
+      margin-top: 8px;
+      background: linear-gradient(135deg, #00d4ff, #2979ff);
+      color: #000;
+      border: none;
+      border-radius: 50px;
+      padding: 14px 50px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: system-ui;
+      box-shadow: 0 8px 28px rgba(0, 212, 255, .28)
+    }
+
+    #startBtn:active {
+      transform: scale(.95)
+    }
+
+    /* ── HUD ── */
+    .hud {
+      position: fixed;
+      z-index: 10;
+      pointer-events: none
+    }
+
+    .hud-top {
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 44px 14px 10px;
+      background: linear-gradient(to bottom, rgba(0, 0, 0, .55), transparent);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start
+    }
+
+    .hud-top h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff
+    }
+
+    .hud-top .sub {
+      font-size: 9px;
+      color: rgba(255, 255, 255, .3);
+      font-family: 'Consolas', monospace;
+      margin-top: 2px
+    }
+
+    .stat-card {
+      top: 100px;
+      left: 10px;
+      background: rgba(6, 6, 14, .78);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, .05);
+      border-radius: 12px;
+      padding: 10px 12px;
+      min-width: 110px
+    }
+
+    .stat-card .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      font-size: 10px
+    }
+
+    .stat-card .row+.row {
+      border-top: 1px solid rgba(255, 255, 255, .04)
+    }
+
+    .stat-card .lbl {
+      color: #6e6e80;
+      font-family: 'Consolas', monospace;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      font-size: 8px
+    }
+
+    .stat-card .val {
+      font-weight: 700;
+      font-family: 'Consolas', monospace;
+      font-size: 11px
+    }
+
+    .pos-card {
+      top: 100px;
+      right: 10px;
+      background: rgba(6, 6, 14, .78);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, .05);
+      border-radius: 12px;
+      padding: 10px 12px
+    }
+
+    .pos-card .val {
+      font-size: 11px;
+      font-family: 'Consolas', monospace;
+      color: var(--cyan)
+    }
+
+    .hud-bot {
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 12px 32px;
+      background: linear-gradient(to top, rgba(0, 0, 0, .55), transparent);
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      pointer-events: auto
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, .07);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, .09);
+      border-radius: 50px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 9px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px
+    }
+
+    .btn:active {
+      transform: scale(.93)
+    }
+
+    .btn.on {
+      background: rgba(0, 212, 255, .15);
+      border-color: rgba(0, 212, 255, .25);
+      color: var(--cyan)
+    }
+
+    /* scan line */
+    .scanline {
+      position: fixed;
+      left: 0;
+      right: 0;
+      height: 1.5px;
+      z-index: 4;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: .3;
+      animation: sc 3s linear infinite
+    }
+
+    @keyframes sc {
+      0% {
+        top: 40px
+      }
+
+      100% {
+        top: calc(100% - 80px)
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<video id="cam" autoplay playsinline muted></video>
-<canvas id="c3d"></canvas>
+  <video id="cam" autoplay playsinline muted></video>
+  <canvas id="c3d"></canvas>
 
-<!-- ── Setup ── -->
-<div id="setup">
-  <h2>AR WiFi Scanner</h2>
-  <p>Input the distance (meters) from you to each wall. Height is fixed at 4m.</p>
-  <div class="room-inputs">
-    <label>Front<input id="dF" type="number" value="5" min="0.5" max="50" step="0.5"></label>
-    <label>Back<input id="dB" type="number" value="3" min="0.5" max="50" step="0.5"></label>
-    <label>Left<input id="dL" type="number" value="2" min="0.5" max="50" step="0.5"></label>
-    <label>Right<input id="dR" type="number" value="4" min="0.5" max="50" step="0.5"></label>
+  <!-- ── Setup ── -->
+  <div id="setup">
+    <h2>AR WiFi Scanner</h2>
+    <p>Input the distance (meters) from you to each wall. Height is fixed at 4m.</p>
+    <div class="room-inputs">
+      <label>Front<input id="dF" type="number" value="5" min="0.5" max="50" step="0.5"></label>
+      <label>Back<input id="dB" type="number" value="3" min="0.5" max="50" step="0.5"></label>
+      <label>Left<input id="dL" type="number" value="2" min="0.5" max="50" step="0.5"></label>
+      <label>Right<input id="dR" type="number" value="4" min="0.5" max="50" step="0.5"></label>
+    </div>
+    <div class="density-row">
+      Density:
+      <button onclick="setDens('Low')" id="dLow">Low 50cm</button>
+      <button onclick="setDens('Medium')" id="dMedium" class="sel">Medium 20cm</button>
+      <button onclick="setDens('High')" id="dHigh">High 10cm</button>
+    </div>
+    <button id="startBtn" onclick="startApp()">Start</button>
   </div>
-  <div class="density-row">
-    Density:
-    <button onclick="setDens('Low')" id="dLow">Low 50cm</button>
-    <button onclick="setDens('Medium')" id="dMedium" class="sel">Medium 20cm</button>
-    <button onclick="setDens('High')" id="dHigh">High 10cm</button>
+
+  <!-- ── HUD ── -->
+  <div class="hud hud-top" id="hudTop" style="display:none">
+    <div>
+      <h1>AR Signal Scanner</h1>
+      <div class="sub" id="subLabel">INITIALIZING</div>
+    </div>
   </div>
-  <button id="startBtn" onclick="startApp()">Start</button>
-</div>
 
-<!-- ── HUD ── -->
-<div class="hud hud-top" id="hudTop" style="display:none">
-  <div><h1>AR Signal Scanner</h1><div class="sub" id="subLabel">INITIALIZING</div></div>
-</div>
+  <div class="hud stat-card" id="hudStat" style="display:none">
+    <div class="row"><span class="lbl">Nodes</span><span class="val" id="vNodes" style="color:var(--cyan)">0</span>
+    </div>
+    <div class="row"><span class="lbl">Best</span><span class="val" id="vBest" style="color:var(--green)">—</span></div>
+    <div class="row"><span class="lbl">Worst</span><span class="val" id="vWorst" style="color:var(--red)">—</span></div>
+    <div class="row"><span class="lbl">Mean</span><span class="val" id="vMean" style="color:var(--yellow)">—</span>
+    </div>
+  </div>
 
-<div class="hud stat-card" id="hudStat" style="display:none">
-  <div class="row"><span class="lbl">Nodes</span><span class="val" id="vNodes" style="color:var(--cyan)">0</span></div>
-  <div class="row"><span class="lbl">Best</span><span class="val" id="vBest" style="color:var(--green)">—</span></div>
-  <div class="row"><span class="lbl">Worst</span><span class="val" id="vWorst" style="color:var(--red)">—</span></div>
-  <div class="row"><span class="lbl">Mean</span><span class="val" id="vMean" style="color:var(--yellow)">—</span></div>
-</div>
+  <div class="hud pos-card" id="hudPos" style="display:none">
+    <div style="font-size:8px;color:#6e6e80;font-family:'Consolas',monospace;margin-bottom:4px">POSITION</div>
+    <div class="val" id="vPos">0.0, 0.0</div>
+  </div>
 
-<div class="hud pos-card" id="hudPos" style="display:none">
-  <div style="font-size:8px;color:#6e6e80;font-family:'Consolas',monospace;margin-bottom:4px">POSITION</div>
-  <div class="val" id="vPos">0.0, 0.0</div>
-</div>
+  <div class="hud hud-bot" id="hudBot" style="display:none">
+    <button class="btn" onclick="moveForward(-0.5)">Back</button>
+    <button class="btn on" onclick="moveForward(0.5)">Forward</button>
+    <button class="btn" onclick="resetPos()">Reset</button>
+    <button class="btn" onclick="reconfig()">Remap</button>
+  </div>
 
-<div class="hud hud-bot" id="hudBot" style="display:none">
-  <button class="btn" onclick="moveForward(-0.5)">Back</button>
-  <button class="btn on" onclick="moveForward(0.5)">Forward</button>
-  <button class="btn" onclick="resetPos()">Reset</button>
-  <button class="btn" onclick="reconfig()">Remap</button>
-</div>
+  <div class="scanline" id="scanline" style="display:none"></div>
 
-<div class="scanline" id="scanline" style="display:none"></div>
+  <script src="https://unpkg.com/three@0.152.0/build/three.min.js"></script>
+  <script>
+    // ══════════════════════════════════════
+    //  CONFIG
+    // ══════════════════════════════════════
+    const SPACING = { Low: 0.5, Medium: 0.2, High: 0.1 };
+    let densKey = 'Medium';
+    const ROOM_H = 4.0;
+    const EYE_H = 1.6; // eye height
 
-<script src="https://unpkg.com/three@0.152.0/build/three.min.js"></script>
-<script>
-// ══════════════════════════════════════
-//  CONFIG
-// ══════════════════════════════════════
-const SPACING = { Low: 0.5, Medium: 0.2, High: 0.1 };
-let densKey = 'Medium';
-const ROOM_H = 4.0;
-const EYE_H = 1.6; // eye height
+    // Room dimensions (set by user)
+    let roomF = 5, roomB = 3, roomL = 2, roomR = 4;
+    // User position within the room (starts at origin = initial position)
+    // Room coords: +Z = forward, -Z = back, -X = left, +X = right
+    // User starts at (roomL, EYE_H, roomB) in room-local coords
+    // But we place camera at (0, 0, 0) and offset the room
 
-// Room dimensions (set by user)
-let roomF = 5, roomB = 3, roomL = 2, roomR = 4;
-// User position within the room (starts at origin = initial position)
-// Room coords: +Z = forward, -Z = back, -X = left, +X = right
-// User starts at (roomL, EYE_H, roomB) in room-local coords
-// But we place camera at (0, 0, 0) and offset the room
+    function setDens(k) {
+      densKey = k;
+      document.querySelectorAll('.density-row button').forEach(b => b.classList.remove('sel'));
+      document.getElementById('d' + k).classList.add('sel');
+    }
 
-function setDens(k) {
-  densKey = k;
-  document.querySelectorAll('.density-row button').forEach(b => b.classList.remove('sel'));
-  document.getElementById('d' + k).classList.add('sel');
-}
+    // ══════════════════════════════════════
+    //  THREE.JS
+    // ══════════════════════════════════════
+    const cvs = document.getElementById('c3d');
+    const renderer = new THREE.WebGLRenderer({ canvas: cvs, alpha: true, antialias: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
 
-// ══════════════════════════════════════
-//  THREE.JS
-// ══════════════════════════════════════
-const cvs = document.getElementById('c3d');
-const renderer = new THREE.WebGLRenderer({ canvas: cvs, alpha: true, antialias: true });
-renderer.setClearColor(0x000000, 0);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 120);
+    camera.position.set(0, 0, 0);
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 120);
-camera.position.set(0, 0, 0);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    let instancedMesh = null;
+    let totalNodes = 0;
+    let nodeData = []; // { sig }
 
-let instancedMesh = null;
-let totalNodes = 0;
-let nodeData = []; // { sig }
+    // ══════════════════════════════════════
+    //  SIGNAL
+    // ══════════════════════════════════════
+    function sigColor(dbm) {
+      const g = new THREE.Color(0x00e67a);
+      const y = new THREE.Color(0xffd600);
+      const o = new THREE.Color(0xff8800);
+      const r = new THREE.Color(0xff2d55);
+      if (dbm >= -30) return g;
+      if (dbm > -50) return g.clone().lerp(y, (-30 - dbm) / 20);
+      if (dbm > -70) return y.clone().lerp(o, (-50 - dbm) / 20);
+      if (dbm > -85) return o.clone().lerp(r, (-70 - dbm) / 15);
+      return r;
+    }
 
-// ══════════════════════════════════════
-//  SIGNAL
-// ══════════════════════════════════════
-function sigColor(dbm) {
-  const g = new THREE.Color(0x00e67a);
-  const y = new THREE.Color(0xffd600);
-  const o = new THREE.Color(0xff8800);
-  const r = new THREE.Color(0xff2d55);
-  if (dbm >= -30) return g;
-  if (dbm > -50) return g.clone().lerp(y, (-30 - dbm) / 20);
-  if (dbm > -70) return y.clone().lerp(o, (-50 - dbm) / 20);
-  if (dbm > -85) return o.clone().lerp(r, (-70 - dbm) / 15);
-  return r;
-}
+    // ══════════════════════════════════════
+    //  BUILD ROOM — uniform 3D grid in a cuboid
+    //  Camera at (0, 0, 0). Room extends:
+    //    X: -roomL to +roomR
+    //    Y: -EYE_H to +(ROOM_H - EYE_H)
+    //    Z: -roomB to +roomF  (forward = -Z in Three.js, but we use +Z here and flip camera)
+    //  Actually: Three.js camera looks down -Z by default.
+    //  So: forward = -Z. Room: Z from -roomF to +roomB, X from -roomL to +roomR
+    // ══════════════════════════════════════
+    function buildRoom() {
+      if (instancedMesh) {
+        scene.remove(instancedMesh);
+        instancedMesh.geometry.dispose();
+        instancedMesh.material.dispose();
+      }
+      nodeData = [];
 
-// ══════════════════════════════════════
-//  BUILD ROOM — uniform 3D grid in a cuboid
-//  Camera at (0, 0, 0). Room extends:
-//    X: -roomL to +roomR
-//    Y: -EYE_H to +(ROOM_H - EYE_H)
-//    Z: -roomB to +roomF  (forward = -Z in Three.js, but we use +Z here and flip camera)
-//  Actually: Three.js camera looks down -Z by default.
-//  So: forward = -Z. Room: Z from -roomF to +roomB, X from -roomL to +roomR
-// ══════════════════════════════════════
-function buildRoom() {
-  if (instancedMesh) {
-    scene.remove(instancedMesh);
-    instancedMesh.geometry.dispose();
-    instancedMesh.material.dispose();
-  }
-  nodeData = [];
+      const sp = SPACING[densKey];
+      const ballR = 0.012; // 1.2cm — small dots, perspective shows depth
 
-  const sp = SPACING[densKey];
-  const ballR = 0.012; // 1.2cm — small dots, perspective shows depth
+      const xMin = -roomL, xMax = roomR;
+      const yMin = -EYE_H + 0.1, yMax = ROOM_H - EYE_H - 0.1;
+      const zMin = -roomF, zMax = roomB; // -Z = forward
 
-  const xMin = -roomL, xMax = roomR;
-  const yMin = -EYE_H + 0.1, yMax = ROOM_H - EYE_H - 0.1;
-  const zMin = -roomF, zMax = roomB; // -Z = forward
+      // Signal source: somewhere in left-front area of room
+      const srcX = xMin + (xMax - xMin) * 0.2; // toward left
+      const srcZ = zMin + (zMax - zMin) * 0.2; // toward front
+      const maxDist = Math.sqrt((xMax - xMin) ** 2 + (zMax - zMin) ** 2 + (yMax - yMin) ** 2);
 
-  // Signal source: somewhere in left-front area of room
-  const srcX = xMin + (xMax - xMin) * 0.2; // toward left
-  const srcZ = zMin + (zMax - zMin) * 0.2; // toward front
-  const maxDist = Math.sqrt((xMax-xMin)**2 + (zMax-zMin)**2 + (yMax-yMin)**2);
+      const points = [];
+      for (let x = xMin; x <= xMax; x += sp) {
+        for (let z = zMin; z <= zMax; z += sp) {
+          for (let y = yMin; y <= yMax; y += sp) {
+            // Signal based on distance from source — gradient across room
+            const dx = x - srcX, dz = z - srcZ, dy = y - 0;
+            const distToSrc = Math.sqrt(dx * dx + dz * dz + dy * dy);
+            const ratio = Math.min(distToSrc / maxDist, 1);
+            const sig = -25 - ratio * 65 + (Math.random() - 0.5) * 4;
 
-  const points = [];
-  for (let x = xMin; x <= xMax; x += sp) {
-    for (let z = zMin; z <= zMax; z += sp) {
-      for (let y = yMin; y <= yMax; y += sp) {
-        // Signal based on distance from source — gradient across room
-        const dx = x - srcX, dz = z - srcZ, dy = y - 0;
-        const distToSrc = Math.sqrt(dx*dx + dz*dz + dy*dy);
-        const ratio = Math.min(distToSrc / maxDist, 1);
-        const sig = -25 - ratio * 65 + (Math.random() - 0.5) * 4;
+            points.push({ x, y, z, sig });
+          }
+        }
+      }
 
-        points.push({ x, y, z, sig });
+      // Cap for performance
+      const maxPts = 80000;
+      if (points.length > maxPts) points.length = maxPts;
+
+      totalNodes = points.length;
+
+      const geo = new THREE.SphereGeometry(1, 6, 6);
+      const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8 });
+      instancedMesh = new THREE.InstancedMesh(geo, mat, totalNodes);
+
+      const dummy = new THREE.Object3D();
+      for (let i = 0; i < totalNodes; i++) {
+        const p = points[i];
+        dummy.position.set(p.x, p.y, p.z);
+        dummy.scale.setScalar(ballR);
+        dummy.updateMatrix();
+        instancedMesh.setMatrixAt(i, dummy.matrix);
+        instancedMesh.setColorAt(i, sigColor(p.sig));
+        nodeData.push({ sig: p.sig, x: p.x, y: p.y, z: p.z });
+      }
+
+      instancedMesh.instanceMatrix.needsUpdate = true;
+      instancedMesh.instanceColor.needsUpdate = true;
+      scene.add(instancedMesh);
+    }
+
+    // ══════════════════════════════════════
+    //  CAMERA — gyroscope for rotation, step detection for movement
+    // ══════════════════════════════════════
+    let hasGyro = false;
+    let baseAlpha = null;
+    let curQ = new THREE.Quaternion();
+    let targetQ = new THREE.Quaternion();
+    const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+    const deviceQuaternion = new THREE.Quaternion();
+    const screenTransform = new THREE.Quaternion();
+    const worldFixQ = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+    let screenOrientation = 0;
+
+    function updateScreenOrientation() {
+      screenOrientation = (screen.orientation && screen.orientation.angle !== undefined)
+        ? screen.orientation.angle : (window.orientation || 0);
+    }
+    window.addEventListener('orientationchange', updateScreenOrientation);
+    updateScreenOrientation();
+
+    // Position tracking
+    let camX = 0, camZ = 0; // horizontal position offset
+    let lastStepTime = 0;
+    let accelHistory = [];
+    const STEP_LEN = 0.65; // meters per step
+
+    function initSensors() {
+      // Gyroscope
+      const tryGyro = () => {
+        window.addEventListener('deviceorientation', onOri, true);
+        setTimeout(() => {
+          if (!hasGyro) {
+            document.getElementById('subLabel').textContent = 'TOUCH MODE';
+            initTouch();
+          }
+        }, 2000);
+      };
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().then(r => {
+          if (r === 'granted') tryGyro();
+          else initTouch();
+        }).catch(() => initTouch());
+      } else {
+        tryGyro();
+      }
+
+      // Accelerometer for step detection
+      if (window.DeviceMotionEvent) {
+        window.addEventListener('devicemotion', onMotion, true);
       }
     }
-  }
 
-  // Cap for performance
-  const maxPts = 80000;
-  if (points.length > maxPts) points.length = maxPts;
+    function onOri(e) {
+      if (e.alpha == null && e.beta == null) return;
+      hasGyro = true;
+      document.getElementById('subLabel').textContent = 'GYROSCOPE + STEP DETECT';
 
-  totalNodes = points.length;
+      const alpha = e.alpha || 0;
+      const beta = e.beta || 0;
+      const gamma = e.gamma || 0;
 
-  const geo = new THREE.SphereGeometry(1, 6, 6);
-  const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8 });
-  instancedMesh = new THREE.InstancedMesh(geo, mat, totalNodes);
+      if (baseAlpha === null) baseAlpha = alpha;
 
-  const dummy = new THREE.Object3D();
-  for (let i = 0; i < totalNodes; i++) {
-    const p = points[i];
-    dummy.position.set(p.x, p.y, p.z);
-    dummy.scale.setScalar(ballR);
-    dummy.updateMatrix();
-    instancedMesh.setMatrixAt(i, dummy.matrix);
-    instancedMesh.setColorAt(i, sigColor(p.sig));
-    nodeData.push({ sig: p.sig, x: p.x, y: p.y, z: p.z });
-  }
+      // Standard Three.js DeviceOrientationControls algorithm (YXZ order)
+      euler.set(
+        THREE.MathUtils.degToRad(beta),
+        THREE.MathUtils.degToRad(alpha - baseAlpha),
+        -THREE.MathUtils.degToRad(gamma),
+        'YXZ'
+      );
+      deviceQuaternion.setFromEuler(euler);
 
-  instancedMesh.instanceMatrix.needsUpdate = true;
-  instancedMesh.instanceColor.needsUpdate = true;
-  scene.add(instancedMesh);
-}
+      // -90° X: phone upright = horizon, phone flat = floor
+      deviceQuaternion.multiply(worldFixQ);
 
-// ══════════════════════════════════════
-//  CAMERA — gyroscope for rotation, step detection for movement
-// ══════════════════════════════════════
-let hasGyro = false;
-let baseAlpha = null;
-let curQ = new THREE.Quaternion();
-let targetQ = new THREE.Quaternion();
-const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+      // Screen orientation (portrait/landscape)
+      screenTransform.setFromAxisAngle(
+        new THREE.Vector3(0, 0, 1),
+        -THREE.MathUtils.degToRad(screenOrientation)
+      );
+      deviceQuaternion.multiply(screenTransform);
 
-// Position tracking
-let camX = 0, camZ = 0; // horizontal position offset
-let lastStepTime = 0;
-let accelHistory = [];
-const STEP_LEN = 0.65; // meters per step
-
-function initSensors() {
-  // Gyroscope
-  const tryGyro = () => {
-    window.addEventListener('deviceorientation', onOri, true);
-    setTimeout(() => {
-      if (!hasGyro) {
-        document.getElementById('subLabel').textContent = 'TOUCH MODE';
-        initTouch();
-      }
-    }, 2000);
-  };
-  if (typeof DeviceOrientationEvent !== 'undefined' &&
-      typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission().then(r => {
-      if (r === 'granted') tryGyro();
-      else initTouch();
-    }).catch(() => initTouch());
-  } else {
-    tryGyro();
-  }
-
-  // Accelerometer for step detection
-  if (window.DeviceMotionEvent) {
-    window.addEventListener('devicemotion', onMotion, true);
-  }
-}
-
-function onOri(e) {
-  if (e.alpha == null && e.beta == null) return;
-  hasGyro = true;
-  document.getElementById('subLabel').textContent = 'GYROSCOPE + STEP DETECT';
-
-  const alpha = e.alpha || 0;
-  const beta = e.beta || 0;
-  const gamma = e.gamma || 0;
-
-  if (baseAlpha === null) baseAlpha = alpha;
-
-  let da = alpha - baseAlpha;
-  if (da > 180) da -= 360;
-  if (da < -180) da += 360;
-
-  const a = THREE.MathUtils.degToRad(da);
-  const b = THREE.MathUtils.degToRad(beta - 90);
-  const g = THREE.MathUtils.degToRad(-gamma);
-
-  euler.set(b, a, g, 'YXZ');
-  targetQ.setFromEuler(euler);
-}
-
-// Step detection from accelerometer
-function onMotion(e) {
-  const acc = e.accelerationIncludingGravity;
-  if (!acc) return;
-  const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-  const now = Date.now();
-
-  accelHistory.push({ mag, t: now });
-  // Keep last 500ms
-  accelHistory = accelHistory.filter(a => now - a.t < 500);
-
-  if (accelHistory.length < 3) return;
-
-  // Detect step: acceleration spike above threshold
-  const avg = accelHistory.reduce((s, a) => s + a.mag, 0) / accelHistory.length;
-  const peak = mag - avg;
-
-  if (peak > 1.8 && now - lastStepTime > 280) {
-    lastStepTime = now;
-    moveForward(STEP_LEN);
-  }
-}
-
-function moveForward(dist) {
-  const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-  dir.y = 0;
-  dir.normalize();
-  const newX = camX + dir.x * dist;
-  const newZ = camZ + dir.z * dist;
-  if (newX >= -roomL && newX <= roomR) camX = newX;
-  if (newZ >= -roomF && newZ <= roomB) camZ = newZ;
-}
-
-// Touch/mouse fallback
-let tRotX = 0, tRotY = 0;
-function initTouch() {
-  document.getElementById('subLabel').textContent = 'TOUCH MODE';
-  let dragging = false, sx, sy;
-  cvs.addEventListener('touchstart', e => { e.preventDefault(); dragging = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: false });
-  cvs.addEventListener('touchmove', e => {
-    e.preventDefault();
-    if (!dragging) return;
-    tRotY -= (e.touches[0].clientX - sx) * 0.004;
-    tRotX -= (e.touches[0].clientY - sy) * 0.004;
-    tRotX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, tRotX));
-    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-    euler.set(tRotX, tRotY, 0, 'YXZ');
-    targetQ.setFromEuler(euler);
-  }, { passive: false });
-  cvs.addEventListener('touchend', () => dragging = false);
-  cvs.addEventListener('mousedown', e => { dragging = true; sx = e.clientX; sy = e.clientY; });
-  window.addEventListener('mousemove', e => {
-    if (!dragging) return;
-    tRotY -= (e.clientX - sx) * 0.004;
-    tRotX -= (e.clientY - sy) * 0.004;
-    tRotX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, tRotX));
-    sx = e.clientX; sy = e.clientY;
-    euler.set(tRotX, tRotY, 0, 'YXZ');
-    targetQ.setFromEuler(euler);
-  });
-  window.addEventListener('mouseup', () => dragging = false);
-}
-
-// ══════════════════════════════════════
-//  STATS — only count nodes visible in camera frustum
-// ══════════════════════════════════════
-const frustum = new THREE.Frustum();
-const projScreenMatrix = new THREE.Matrix4();
-const tmpVec = new THREE.Vector3();
-
-function updateVisibleStats() {
-  if (nodeData.length === 0) return;
-
-  projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-  frustum.setFromProjectionMatrix(projScreenMatrix);
-
-  let count = 0, best = -999, worst = 0, sum = 0;
-  // Sample every Nth for performance
-  const step = Math.max(1, Math.floor(nodeData.length / 5000));
-  for (let i = 0; i < nodeData.length; i += step) {
-    const n = nodeData[i];
-    tmpVec.set(n.x, n.y, n.z);
-    if (frustum.containsPoint(tmpVec)) {
-      count++;
-      if (n.sig > best) best = n.sig;
-      if (n.sig < worst) worst = n.sig;
-      sum += n.sig;
+      targetQ.copy(deviceQuaternion);
     }
-  }
 
-  // Scale count back up if we sampled
-  const realCount = count * step;
-  document.getElementById('vNodes').textContent = realCount;
-  if (count > 0) {
-    document.getElementById('vBest').textContent = best.toFixed(0) + ' dBm';
-    document.getElementById('vWorst').textContent = worst.toFixed(0) + ' dBm';
-    document.getElementById('vMean').textContent = (sum / count).toFixed(0) + ' dBm';
-  }
-}
+    // Step detection from accelerometer
+    function onMotion(e) {
+      const acc = e.accelerationIncludingGravity;
+      if (!acc) return;
+      const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+      const now = Date.now();
 
-// ══════════════════════════════════════
-//  RENDER LOOP
-// ══════════════════════════════════════
-let frameCount = 0;
-function loop() {
-  requestAnimationFrame(loop);
+      accelHistory.push({ mag, t: now });
+      // Keep last 500ms
+      accelHistory = accelHistory.filter(a => now - a.t < 500);
 
-  // Camera rotation — responsive slerp
-  curQ.slerp(targetQ, 0.3);
-  camera.quaternion.copy(curQ);
+      if (accelHistory.length < 3) return;
 
-  // Camera position — follows step detection
-  camera.position.set(camX, 0, camZ);
+      // Detect step: acceleration spike above threshold
+      const avg = accelHistory.reduce((s, a) => s + a.mag, 0) / accelHistory.length;
+      const peak = mag - avg;
 
-  // Update position display
-  const posEl = document.getElementById('vPos');
-  if (posEl && posEl.style.display !== 'none') {
-    posEl.textContent = `${camX.toFixed(1)}, ${camZ.toFixed(1)}`;
-  }
+      if (peak > 1.8 && now - lastStepTime > 280) {
+        lastStepTime = now;
+        moveForward(STEP_LEN);
+      }
+    }
 
-  renderer.render(scene, camera);
+    function moveForward(dist) {
+      const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      dir.y = 0;
+      dir.normalize();
+      const newX = camX + dir.x * dist;
+      const newZ = camZ + dir.z * dist;
+      if (newX >= -roomL && newX <= roomR) camX = newX;
+      if (newZ >= -roomF && newZ <= roomB) camZ = newZ;
+    }
 
-  // Update visible stats every few frames
-  if (frameCount++ % 6 === 0) updateVisibleStats();
-}
+    // Touch/mouse fallback
+    let tRotX = 0, tRotY = 0;
+    function initTouch() {
+      document.getElementById('subLabel').textContent = 'TOUCH MODE';
+      let dragging = false, sx, sy;
+      cvs.addEventListener('touchstart', e => { e.preventDefault(); dragging = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: false });
+      cvs.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if (!dragging) return;
+        tRotY -= (e.touches[0].clientX - sx) * 0.004;
+        tRotX -= (e.touches[0].clientY - sy) * 0.004;
+        tRotX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, tRotX));
+        sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+        euler.set(tRotX, tRotY, 0, 'YXZ');
+        targetQ.setFromEuler(euler);
+      }, { passive: false });
+      cvs.addEventListener('touchend', () => dragging = false);
+      cvs.addEventListener('mousedown', e => { dragging = true; sx = e.clientX; sy = e.clientY; });
+      window.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        tRotY -= (e.clientX - sx) * 0.004;
+        tRotX -= (e.clientY - sy) * 0.004;
+        tRotX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, tRotX));
+        sx = e.clientX; sy = e.clientY;
+        euler.set(tRotX, tRotY, 0, 'YXZ');
+        targetQ.setFromEuler(euler);
+      });
+      window.addEventListener('mouseup', () => dragging = false);
+    }
 
-// ══════════════════════════════════════
-//  CAMERA FEED
-// ══════════════════════════════════════
-async function startCam() {
-  const video = document.getElementById('cam');
-  if (!window.isSecureContext) { video.style.display = 'none'; return; }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+    // ══════════════════════════════════════
+    //  STATS — only count nodes visible in camera frustum
+    // ══════════════════════════════════════
+    const frustum = new THREE.Frustum();
+    const projScreenMatrix = new THREE.Matrix4();
+    const tmpVec = new THREE.Vector3();
+
+    function updateVisibleStats() {
+      if (nodeData.length === 0) return;
+
+      projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      frustum.setFromProjectionMatrix(projScreenMatrix);
+
+      let count = 0, best = -999, worst = 0, sum = 0;
+      // Sample every Nth for performance
+      const step = Math.max(1, Math.floor(nodeData.length / 5000));
+      for (let i = 0; i < nodeData.length; i += step) {
+        const n = nodeData[i];
+        tmpVec.set(n.x, n.y, n.z);
+        if (frustum.containsPoint(tmpVec)) {
+          count++;
+          if (n.sig > best) best = n.sig;
+          if (n.sig < worst) worst = n.sig;
+          sum += n.sig;
+        }
+      }
+
+      // Scale count back up if we sampled
+      const realCount = count * step;
+      document.getElementById('vNodes').textContent = realCount;
+      if (count > 0) {
+        document.getElementById('vBest').textContent = best.toFixed(0) + ' dBm';
+        document.getElementById('vWorst').textContent = worst.toFixed(0) + ' dBm';
+        document.getElementById('vMean').textContent = (sum / count).toFixed(0) + ' dBm';
+      }
+    }
+
+    // ══════════════════════════════════════
+    //  RENDER LOOP
+    // ══════════════════════════════════════
+    let frameCount = 0;
+    function loop() {
+      requestAnimationFrame(loop);
+
+      // Camera rotation — responsive slerp
+      curQ.slerp(targetQ, 0.3);
+      camera.quaternion.copy(curQ);
+
+      // Camera position — follows step detection
+      camera.position.set(camX, 0, camZ);
+
+      // Update position display
+      const posEl = document.getElementById('vPos');
+      if (posEl && posEl.style.display !== 'none') {
+        posEl.textContent = `${camX.toFixed(1)}, ${camZ.toFixed(1)}`;
+      }
+
+      renderer.render(scene, camera);
+
+      // Update visible stats every few frames
+      if (frameCount++ % 6 === 0) updateVisibleStats();
+    }
+
+    // ══════════════════════════════════════
+    //  CAMERA FEED
+    // ══════════════════════════════════════
+    async function startCam() {
+      const video = document.getElementById('cam');
+      if (!window.isSecureContext) { video.style.display = 'none'; return; }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+        });
+        video.srcObject = stream;
+        await new Promise(r => { video.onloadedmetadata = () => { video.play().then(r).catch(r); }; setTimeout(r, 3000); });
+      } catch (e) { video.style.display = 'none'; }
+    }
+
+    // ══════════════════════════════════════
+    //  CONTROLS
+    // ══════════════════════════════════════
+    function resetPos() {
+      camX = 0;
+      camZ = 0;
+      baseAlpha = null;
+      curQ.identity();
+      targetQ.identity();
+      tRotX = 0;
+      tRotY = 0;
+    }
+
+    function reconfig() {
+      document.getElementById('setup').classList.remove('gone');
+      ['hudTop', 'hudStat', 'hudPos', 'hudBot', 'scanline'].forEach(id =>
+        document.getElementById(id).style.display = 'none');
+    }
+
+    // ══════════════════════════════════════
+    //  START
+    // ══════════════════════════════════════
+    async function startApp() {
+      roomF = parseFloat(document.getElementById('dF').value) || 5;
+      roomB = parseFloat(document.getElementById('dB').value) || 3;
+      roomL = parseFloat(document.getElementById('dL').value) || 2;
+      roomR = parseFloat(document.getElementById('dR').value) || 4;
+
+      document.getElementById('setup').classList.add('gone');
+      ['hudTop', 'hudStat', 'hudPos', 'hudBot', 'scanline'].forEach(id =>
+        document.getElementById(id).style.display = '');
+
+      await startCam();
+      initSensors();
+      buildRoom();
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
     });
-    video.srcObject = stream;
-    await new Promise(r => { video.onloadedmetadata = () => { video.play().then(r).catch(r); }; setTimeout(r, 3000); });
-  } catch (e) { video.style.display = 'none'; }
-}
 
-// ══════════════════════════════════════
-//  CONTROLS
-// ══════════════════════════════════════
-function resetPos() {
-  camX = 0;
-  camZ = 0;
-  baseAlpha = null;
-  curQ.identity();
-  targetQ.identity();
-  tRotX = 0;
-  tRotY = 0;
-}
-
-function reconfig() {
-  document.getElementById('setup').classList.remove('gone');
-  ['hudTop', 'hudStat', 'hudPos', 'hudBot', 'scanline'].forEach(id =>
-    document.getElementById(id).style.display = 'none');
-}
-
-// ══════════════════════════════════════
-//  START
-// ══════════════════════════════════════
-async function startApp() {
-  roomF = parseFloat(document.getElementById('dF').value) || 5;
-  roomB = parseFloat(document.getElementById('dB').value) || 3;
-  roomL = parseFloat(document.getElementById('dL').value) || 2;
-  roomR = parseFloat(document.getElementById('dR').value) || 4;
-
-  document.getElementById('setup').classList.add('gone');
-  ['hudTop', 'hudStat', 'hudPos', 'hudBot', 'scanline'].forEach(id =>
-    document.getElementById(id).style.display = '');
-
-  await startCam();
-  initSensors();
-  buildRoom();
-}
-
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-loop();
-</script>
+    loop();
+  </script>
 </body>
+
 </html>
