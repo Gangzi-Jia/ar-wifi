@@ -311,10 +311,10 @@
     <h2>AR WiFi Scanner</h2>
     <p>Input the distance (meters) from you to each wall. Height is fixed at 4m.</p>
     <div class="room-inputs">
-      <label>Front<input id="dF" type="number" value="5" min="0.5" max="50" step="0.5"></label>
-      <label>Back<input id="dB" type="number" value="3" min="0.5" max="50" step="0.5"></label>
-      <label>Left<input id="dL" type="number" value="2" min="0.5" max="50" step="0.5"></label>
-      <label>Right<input id="dR" type="number" value="4" min="0.5" max="50" step="0.5"></label>
+      <label>Front<input id="dF" type="number" value="15" min="0.5" max="50" step="0.5"></label>
+      <label>Back<input id="dB" type="number" value="10" min="0.5" max="50" step="0.5"></label>
+      <label>Left<input id="dL" type="number" value="6" min="0.5" max="50" step="0.5"></label>
+      <label>Right<input id="dR" type="number" value="6" min="0.5" max="50" step="0.5"></label>
     </div>
     <div class="density-row">
       Density:
@@ -367,7 +367,7 @@
     const EYE_H = 1.6; // eye height
 
     // Room dimensions (set by user)
-    let roomF = 5, roomB = 3, roomL = 2, roomR = 4;
+    let roomF = 15, roomB = 10, roomL = 6, roomR = 6;
     // User position within the room (starts at origin = initial position)
     // Room coords: +Z = forward, -Z = back, -X = left, +X = right
     // User starts at (roomL, EYE_H, roomB) in room-local coords
@@ -503,11 +503,8 @@
     window.addEventListener('orientationchange', updateScreenOrientation);
     updateScreenOrientation();
 
-    // Position tracking
-    let camX = 0, camZ = 0; // horizontal position offset
-    let lastStepTime = 0;
-    let accelHistory = [];
-    const STEP_LEN = 0.65; // meters per step
+    // Manual position tracking only
+    let camX = 0, camZ = 0;
 
     function initSensors() {
       // Gyroscope
@@ -530,16 +527,12 @@
         tryGyro();
       }
 
-      // Accelerometer for step detection
-      if (window.DeviceMotionEvent) {
-        window.addEventListener('devicemotion', onMotion, true);
-      }
     }
 
     function onOri(e) {
       if (e.alpha == null && e.beta == null) return;
       hasGyro = true;
-      document.getElementById('subLabel').textContent = 'GYROSCOPE + STEP DETECT';
+      document.getElementById('subLabel').textContent = 'GYROSCOPE';
 
       const alpha = e.alpha || 0;
       const beta = e.beta || 0;
@@ -567,29 +560,6 @@
       deviceQuaternion.multiply(screenTransform);
 
       targetQ.copy(deviceQuaternion);
-    }
-
-    // Step detection from accelerometer
-    function onMotion(e) {
-      const acc = e.accelerationIncludingGravity;
-      if (!acc) return;
-      const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-      const now = Date.now();
-
-      accelHistory.push({ mag, t: now });
-      // Keep last 500ms
-      accelHistory = accelHistory.filter(a => now - a.t < 500);
-
-      if (accelHistory.length < 3) return;
-
-      // Detect step: acceleration spike above threshold
-      const avg = accelHistory.reduce((s, a) => s + a.mag, 0) / accelHistory.length;
-      const peak = mag - avg;
-
-      if (peak > 1.8 && now - lastStepTime > 280) {
-        lastStepTime = now;
-        moveForward(STEP_LEN);
-      }
     }
 
     function moveForward(dist) {
